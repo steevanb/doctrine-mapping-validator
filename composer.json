@@ -1,0 +1,16 @@
+{
+    "name": "steevanb/doctrine-mapping-validator",
+    "license": "MIT",
+    "description": "Validate your Doctrine mapping informations and PHP code",
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-0": { "steevanb\\DoctrineMappingValidator\\": "" }
+    },
+    "target-dir": "steevanb/doctrine-mapping-validator",
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/steevanb/doctrine-mapping-validator.git"
+        }
+    ]
+}
