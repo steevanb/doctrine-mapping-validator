@@ -4,7 +4,7 @@
     "description": "Validate your Doctrine mapping informations and PHP code",
     "minimum-stability": "dev",
     "autoload": {
-        "psr-0": { "steevanb\\DoctrineMappingValidator\\": "" }
+        "psr-4": { "steevanb\\DoctrineMappingValidator\\": "" }
     },
     "repositories": [
         {
