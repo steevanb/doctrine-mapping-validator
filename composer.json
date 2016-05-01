@@ -6,6 +6,9 @@
     "autoload": {
         "psr-4": { "steevanb\\DoctrineMappingValidator\\": "" }
     },
+    "require": {
+        "doctrine/orm": "^2.4.8"
+    },
     "repositories": [
         {
             "type": "vcs",
