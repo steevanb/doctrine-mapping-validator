@@ -8,7 +8,10 @@ class ErrorReport
     protected $message;
 
     /** @var string[] */
-    protected $extraMessages = [];
+    protected $errors = [];
+
+    /** @var string[] */
+    protected $helps = [];
 
     /** @var string[] */
     protected $files = [];
@@ -36,22 +39,41 @@ class ErrorReport
     }
 
     /**
-     * @param string $message
+     * @param string $error
      * @return $this
      */
-    public function addExtraMessage($message)
+    public function addError($error)
     {
-        $this->extraMessages[] = $message;
+        $this->errors[] = $error;
 
         return $this;
     }
 
     /**
-     * @return string
+     * @return string[]
      */
-    public function getExtraMessages()
+    public function getErrors()
     {
-        return $this->extraMessages;
+        return $this->errors;
+    }
+
+    /**
+     * @param string $help
+     * @return $this
+     */
+    public function addHelp($help)
+    {
+        $this->helps[] = $help;
+
+        return $this;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getHelps()
+    {
+        return $this->helps;
     }
 
     /**
@@ -93,6 +115,23 @@ class ErrorReport
     }
 
     /**
+     * @param string $file
+     * @param int $line
+     * @param string $code
+     * @return $this
+     */
+    public function addCode($file, $line, $code)
+    {
+        $this->codes[] = [
+            'file' => $file,
+            'line' => $line,
+            'code' => $code
+        ];
+
+        return $this;
+    }
+
+    /**
      * @param object $object
      * @param string $method
      * @return $this
@@ -109,11 +148,31 @@ class ErrorReport
             $coutLines++;
         }
 
-        $this->codes[] = [
-            'file' => $reflection->getFileName(),
-            'line' => $startLine,
-            'code' => implode(null, array_slice($classLines, $startLine, $coutLines))
-        ];
+        $this->addCode(
+            $reflection->getFileName(),
+            $startLine,
+            implode(null, array_slice($classLines, $startLine, $coutLines))
+        );
+
+        return $this;
+    }
+
+    /**
+     * @param string $file
+     * @param int $line
+     * @return $this
+     */
+    public function addCodeLinePreview($file, $line)
+    {
+        $lines = file($file);
+        $startLine = max(0, $line - 4);
+        $endLine = min(count($lines), $line + 4);
+
+        $this->addCode(
+            $file,
+            $line,
+            implode(null, array_slice($lines, $startLine, $endLine - $startLine))
+        );
 
         return $this;
     }

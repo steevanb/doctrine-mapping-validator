@@ -2,44 +2,22 @@
 
 namespace steevanb\DoctrineMappingValidator\OneToMany;
 
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use FigurinesBundle\Entity\Image;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
-use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
 
 trait AddRightObjectOneToManyTrait
 {
     /**
-     * @return EntityManagerInterface
-     */
-    abstract public function getManager();
-
-    /**
-     * @return object
-     */
-    abstract public function getLeftObject();
-
-    /**
-     * @return string
-     */
-    abstract public function getLeftObjectProperty();
-
-    /**
-     * @return Report
-     */
-    abstract public function getReport();
-
-    /**
      * @return $this
      */
     protected function validateAddRightObject()
     {
-        $rightObject = $this->createRightObject();
+        $this->rightObject = $this->createRightObject();
 
-        $this->addRightObject($rightObject);
-        $this->flushAddRightObject($rightObject);
+        $this->addRightObject();
+        $this->flushAddRightObject();
 
         return $this;
     }
@@ -50,8 +28,8 @@ trait AddRightObjectOneToManyTrait
     protected function createRightObject()
     {
         $toto = $this
-            ->getManager()
-            ->getClassMetadata(get_class($this->getLeftObject()));
+            ->manager
+            ->getClassMetadata(get_class($this->leftObject));
 
         $image = new Image();
         $image->setUrl('http://www.test.com');
@@ -65,9 +43,9 @@ trait AddRightObjectOneToManyTrait
     protected function getRightObjectMappedBy()
     {
         return $this
-            ->getManager()
-            ->getClassMetadata(get_class($this->getLeftObject()))
-            ->getAssociationMappedByTargetField($this->getLeftObjectProperty());
+            ->manager
+            ->getClassMetadata(get_class($this->leftObject))
+            ->getAssociationMappedByTargetField($this->leftObjectProperty);
     }
 
     /**
@@ -75,7 +53,7 @@ trait AddRightObjectOneToManyTrait
      */
     protected function getLeftObjectAddMethodName()
     {
-        return 'add' . ucfirst(substr($this->getLeftObjectProperty(), 0, -1));
+        return 'add' . ucfirst(substr($this->leftObjectProperty, 0, -1));
     }
 
     /**
@@ -87,17 +65,30 @@ trait AddRightObjectOneToManyTrait
     }
 
     /**
+     * @param object $object
+     * @param ErrorReport $errorReport
+     * @return $this
+     */
+    protected function addObjectFileNameToErrorReport($object, ErrorReport $errorReport)
+    {
+        $objectReflection = new \ReflectionClass(get_class($object));
+        $errorReport->addFile($objectReflection->getFileName());
+
+        return $this;
+    }
+
+    /**
      * @return string
      */
     protected function getLeftObjectPersistErrorMessage()
     {
-        $leftObjectMetadata = $this->getManager()->getClassMetadata(get_class($this->getLeftObject()));
-        $propertyMetadata = $leftObjectMetadata->associationMappings[$this->getLeftObjectProperty()];
+        $leftObjectMetadata = $this->manager->getClassMetadata(get_class($this->leftObject));
+        $propertyMetadata = $leftObjectMetadata->associationMappings[$this->leftObjectProperty];
         $message = null;
 
         if (in_array('persist', $propertyMetadata['cascade']) === false) {
             $message = 'You have to set "cascade: persist" on your mapping';
-            $message .= ', or explicitly call ' . get_class($this->getManager()) . '::persist().';
+            $message .= ', or explicitly call ' . get_class($this->manager) . '::persist().';
         } else {
             $message .= 'Cascade persist is set on your mapping.';
         }
@@ -108,91 +99,96 @@ trait AddRightObjectOneToManyTrait
     /**
      * @param object $object
      * @param string $method
-     * @param callable $error
+     * @param $error|null $error
+     * @param callable|null $help
      * @return $this
      * @throws ReportException
      */
-    protected function assertMethodExists($object, $method, callable $error)
+    protected function assertMethodExists($object, $method, callable $error = null, callable $help = null)
     {
         if (method_exists($object, $method) === false) {
             $objectClass = get_class($object);
-            $objectReflection = new \ReflectionClass($objectClass);
 
             $message = $objectClass . '::' . $method . '() does not exists.';
-            $message .= call_user_func($error);
             $errorReport = new ErrorReport($message);
-            $errorReport->addFile($objectReflection->getFileName());
+            if (is_callable($error)) {
+                $errorReport->addError(call_user_func($error));
+            }
+            if (is_callable($help)) {
+                $errorReport->addHelp(call_user_func($help));
+            }
+            $this->addObjectFileNameToErrorReport($object, $errorReport);
 
-            throw new ReportException($this->getReport(), $errorReport);
+            throw new ReportException($this->report, $errorReport);
         }
 
         return $this;
     }
 
     /**
-     * @param object $rightObject
+     * @return $this;
      * @throws \Exception
      */
-    protected function addRightObject($rightObject)
+    protected function addRightObject()
     {
         $addMethodName = $this->getLeftObjectAddMethodName();
 
-        $this->assertMethodExists($this->getLeftObject(), $addMethodName, function () {
+        $this->assertMethodExists($this->leftObject, $addMethodName, function () {
             $message = ' You must create this method in order to add object in ';
-            $message .= get_class($this->getLeftObject()) . '::$' . $this->getLeftObjectProperty() . ' collection.';
+            $message .= get_class($this->leftObject) . '::$' . $this->leftObjectProperty . ' collection.';
 
             return $message;
         });
 
+        $rightObject = $this->rightObject;
         $this->assertMethodExists(
-            $rightObject,
+            $this->rightObject,
             $this->getRightObjectGetMappedByMethodName(),
             function () use ($rightObject) {
-                $message = ' You must create this method in order to get ' . get_class($this->getLeftObject());
+                $message = ' You must create this method in order to get ' . get_class($this->leftObject);
                 $message .= ' from ' . get_class($rightObject) . '.';
 
                 return $message;
             }
         );
 
-        $this->getLeftObject()->{$addMethodName}($rightObject);
-        if ($rightObject->{$this->getRightObjectGetMappedByMethodName()}() === $this->getLeftObject()) {
-            $leftObjectReflection = new \ReflectionClass($this->getLeftObject());
-            $message = get_class($this->getLeftObject()) . '::' . $addMethodName . '()';
-            $message .= ' does not call ' . get_class($rightObject) . '::$' . $this->getRightObjectMappedBy() . '.';
+        $this->leftObject->{$addMethodName}($this->rightObject);
+        if ($this->rightObject->{$this->getRightObjectGetMappedByMethodName()}() !== $this->leftObject) {
+            $leftObjectReflection = new \ReflectionClass($this->leftObject);
+            $message = get_class($this->leftObject) . '::' . $addMethodName . '()';
+            $message .= ' does not call ' . get_class($this->rightObject) . '::$' . $this->getRightObjectMappedBy() . '.';
 
             $errorReport = new ErrorReport($message);
             $errorReport->addFile($leftObjectReflection->getFileName());
-            $errorReport->addMethodCode($this->getLeftObject(), $addMethodName);
+            $errorReport->addMethodCode($this->leftObject, $addMethodName);
 
             throw new ReportException($this->getReport(), $errorReport);
         }
     }
 
     /**
-     * @param object $rightObject
      * @return $this
      * @throws \Exception
      */
-    protected function flushAddRightObject($rightObject)
+    protected function flushAddRightObject()
     {
         try {
-            $this->getManager()->flush();
+            $this->manager->flush();
         } catch (ORMInvalidArgumentException $e) {
-            $emClass = get_class($this->getManager());
+            $emClass = get_class($this->manager);
 
             $message = 'ORMInvalidArgumentException occured after calling ';
-            $message .= ' ' . get_class($this->getLeftObject()) . '::' . $this->getLeftObjectAddMethodName() . '(),';
+            $message .= ' ' . get_class($this->leftObject) . '::' . $this->getLeftObjectAddMethodName() . '(),';
             $message .= ' and then ' . $emClass . '::flush().';
             $message .= "\r\n" . $this->getLeftObjectPersistErrorMessage();
             throw new \Exception($message . "\r\n \r\n" . $e->getMessage());
         }
 
-        if ($rightObject->getId() === null) {
-            $emClass = get_class($this->getManager());
+        if ($this->rightObject->getId() === null) {
+            $emClass = get_class($this->manager);
 
-            $message = get_class($rightObject) . '::$id is null after calling';
-            $message .= ' ' . get_class($this->getLeftObject()) . '::' . $this->getLeftObjectAddMethodName() . '(),';
+            $message = get_class($this->rightObject) . '::$id is null after calling';
+            $message .= ' ' . get_class($this->leftObject) . '::' . $this->getLeftObjectAddMethodName() . '(),';
             $message .= ' and then ' . $emClass . '::flush().';
             $message .= "\r\n" . $this->getLeftObjectPersistErrorMessage();
             throw new \Exception($message);

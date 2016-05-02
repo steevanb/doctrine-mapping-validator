@@ -93,9 +93,19 @@ class HtmlExport implements ExportInterface
                                                 <h3 class="panel-title">' . $error->getMessage() . '</h3>
                                             </div>
                                             <div class="panel-body">
+                                                <h4>
+                                                    <i class="glyphicon glyphicon-alert"></i>
+                                                    Errors
+                                                </h4>
             ';
-
-            $html .= implode('<br />', $error->getExtraMessages());
+            $html .= implode('<br />', $error->getErrors());
+            $html .= '
+                                                <h4>
+                                                    <i class="glyphicon glyphicon-info-sign"></i>
+                                                    Helps
+                                                </h4>
+            ';
+            $html .= implode('<br />', $error->getHelps());
 
             if (count($error->getFiles()) > 0) {
                 $html .= '
