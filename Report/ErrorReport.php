@@ -141,18 +141,35 @@ class ErrorReport
         $reflection = new \ReflectionClass($object);
         $reflectionMethod = $reflection->getMethod($method);
         $classLines = file($reflection->getFileName());
+
         $startLine = $reflectionMethod->getStartLine();
         $coutLines = $reflectionMethod->getEndLine() - $startLine;
-        if (trim($classLines[$startLine]) === '{') {
-            $startLine--;
-            $coutLines++;
+        // if method is in trait, getStartLine() return line of "last" used trait (not the right one)
+        $findMethodDeclaration = 2;
+        $methodDeclarationFound = false;
+        while ($findMethodDeclaration > 0) {
+            $line = array_slice($classLines, $startLine, 1)[0];
+            if (strpos($line, $method) === false) {
+                $startLine--;
+                $coutLines++;
+                $findMethodDeclaration--;
+            } else {
+                $methodDeclarationFound = true;
+                break;
+            }
         }
-
-        $this->addCode(
-            $reflection->getFileName(),
-            $startLine,
-            implode(null, array_slice($classLines, $startLine, $coutLines))
-        );
+        if ($methodDeclarationFound) {
+            $this->addCode(
+                $reflection->getFileName(),
+                $startLine,
+                implode(null, array_slice($classLines, $startLine, $coutLines))
+            );
+            $this->codes[] = [
+                'file' => $reflection->getFileName(),
+                'line' => $startLine,
+                'code' => implode(null, array_slice($classLines, $startLine, $coutLines))
+            ];
+        }
 
         return $this;
     }
