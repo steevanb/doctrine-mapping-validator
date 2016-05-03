@@ -2,6 +2,7 @@
 
 namespace steevanb\DoctrineMappingValidator\OneToMany;
 
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
@@ -76,8 +77,14 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     {
         try {
             $this->validateAddRightObject();
-            $this->validateRemoveRightObject();
-        } catch (ReportException $e) {}
+//            $this->validateRemoveRightObject();
+        } catch (ReportException $e) {
+
+        } catch (\Exception $e) {
+            $errorReport = new ErrorReport($e->getMessage());
+            $errorReport->addCodeLinePreview($e->getFile(), $e->getLine());
+            $this->report->addError($errorReport);
+        }
 
         return $this->report;
     }
@@ -246,21 +253,30 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
             return $message;
         });
 
-        $rightObject = $this->rightObject;
         $this->assertMethodExists(
             $this->rightObject,
             $this->getRightObjectGetMappedByMethodName(),
-            function () use ($rightObject) {
+            function () {
                 $message = ' You must create this method in order to get ' . get_class($this->leftObject);
-                $message .= ' from ' . get_class($rightObject) . '.';
+                $message .= ' from ' . get_class($this->rightObject) . '.';
 
                 return $message;
             }
         );
 
         call_user_func([ $this->leftObject, $addMethodName ], $this->rightObject);
+        $this->assertRightObjectIsInCollection();
+    }
+
+    /**
+     * @return $this
+     * @throws ReportException
+     */
+    protected function assertRightObjectIsInCollection()
+    {
         $mappedBy = call_user_func([ $this->rightObject, $this->getRightObjectGetMappedByMethodName() ]);
         if ($mappedBy !== $this->leftObject) {
+            $addMethodName = $this->getLeftObjectAddMethodName();
             $leftObjectReflection = new \ReflectionClass($this->leftObject);
             $message = get_class($this->leftObject) . '::' . $addMethodName . '() ';
             $message .= 'does not call ' . get_class($this->rightObject) . '::$' . $this->getLeftObjectMappedBy() . '.';
@@ -271,6 +287,33 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
 
             throw new ReportException($this->report, $errorReport);
         }
+
+        $collectionMethodName = $this->getLeftObjectCollectionMethodName();
+        $errorClosure = function () use ($collectionMethodName) {
+            $message = 'Method ' . get_class($this->leftObject) . '::' . $collectionMethodName . '()';
+            $message .= ' dost not exists.';
+
+            return $message;
+        };
+        $helpClosure = function () {
+            $message = 'You must create this method, in order to retrieve ';
+            $message .= get_class($this->leftObject) . '::$' . $this->leftObjectProperty . ' collection.';
+
+            return $message;
+        };
+        $this->assertMethodExists($this->leftObject, $collectionMethodName, $errorClosure, $helpClosure);
+
+        $collection = call_user_func([ $this->leftObject, $collectionMethodName ], $this->rightObject);
+        if ($collection instanceof Collection === false) {
+            $message = get_class($this->leftObject) . '::' . $collectionMethodName . '() ';
+            $message .= 'must return an instance of ' . Collection::class . ', ' . gettype($collection) . ' returned.';
+            $errorReport = new ErrorReport($message);
+            $errorReport->addMethodCode($this->leftObject, $collectionMethodName);
+
+            throw new ReportException($this->report, $errorReport);
+        }
+
+        return $this;
     }
 
     /**
@@ -301,10 +344,10 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
             throw new \Exception($message);
         }
 
-        $this->leftObject->setEnabled(false);
-        $this->rightObject->setComment($this->rightObject->getComment() . ' AAAA');
         $this->manager->refresh($this->leftObject);
         $this->manager->refresh($this->rightObject);
+
+        $this->assertRightObjectIsInCollection();
 
         return $this;
     }
@@ -328,7 +371,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
 
         $rightObjectLinkedObject = call_user_func([ $this->rightObject, $this->getRightObjectGetMappedByMethodName() ]);
         if ($rightObjectLinkedObject === null) {
-            $message = get_class($this->leftObject) . '::' . $this->getRemoveRightObjectMethodName() . '()';
+            $message = get_class($this->leftObject) . '::' . $this->getLeftObjectRemoveMethodName() . '()';
             $message .= ' does not call ' . get_class($this->rightObject) . '::';
             $message .= $this->getRightObjectSetMappedByMethodName() . '(null).';
 
@@ -343,7 +386,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
 
     protected function removeRightObject()
     {
-        $removeMethodName = $this->getRemoveRightObjectMethodName();
+        $removeMethodName = $this->getLeftObjectRemoveMethodName();
         $this->assertMethodExists($this->leftObject, $removeMethodName, function () {
             $message = ' You must create this method in order to remove ' . get_class($this->rightObject) . ' in ';
             $message .= get_class($this->leftObject) . '::$' . $this->leftObjectProperty . ' collection.';
@@ -376,7 +419,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     /**
      * @return string
      */
-    protected function getRemoveRightObjectMethodName()
+    protected function getLeftObjectRemoveMethodName()
     {
         return 'remove' . ucfirst(substr($this->leftObjectProperty, 0, -1));
     }
@@ -387,6 +430,14 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     protected function getRightObjectSetMappedByMethodName()
     {
         return 'set' . ucfirst($this->getLeftObjectMappedBy());
+    }
+
+    /**
+     * @return string
+     */
+    protected function getLeftObjectCollectionMethodName()
+    {
+        return 'get' . ucfirst($this->leftObjectProperty);
     }
 
     /**

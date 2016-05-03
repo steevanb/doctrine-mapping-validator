@@ -41,17 +41,50 @@
             .nav li {
                 cursor: pointer;
             }
+            .code-line-number {
+                float: left;
+            }
+            .code-line-number > pre {
+                color: #a3a3a3 !important;
+            }
+            .code-lines {
+                float: left;
+            }
+            .code-highlight {
+                background-color: #71F149;
+            }
+            .margin-bottom-0 {
+                margin-bottom: 0px !important;
+            }
+            .badge-right {
+                float: right;
+            }
+            .badge-danger {
+                background-color: #9A0B0B !important;
+                color: white !important;
+            }
         </style>
     </head>
     <body>
             <div class="row">
-                <div class="col-lg-2">
+                <div class="col-lg-2 col-md-3 col-sm-4">
                     <ul class="nav nav-pills nav-stacked">
-                        <li class="active"><a>Menu 1</a></li>
-                        <li><a>Menu 2</a></li>
+                        <li><a>Summmary</a></li>
+                        <li>
+                            <a>
+                                Passed<?php if (count($report->getErrors()) > 1) { ?>s<?php } ?>
+                                <div class="badge badge-right badge-danger"><?php echo count($report->getErrors()) ?></div>
+                            </a>
+                        </li>
+                        <li class="active">
+                            <a>
+                                Error<?php if (count($report->getErrors()) > 1) { ?>s<?php } ?>
+                                <div class="badge badge-right badge-danger"><?php echo count($report->getErrors()) ?></div>
+                            </a>
+                        </li>
                     </ul>
                 </div>
-                <div class="col-lg-10">
+                <div class="col-lg-10 col-md-9 col-sm-8">
                     <?php foreach ($report->getErrors() as $error) { ?>
                         <div class="row">
                             <div class="col-lg-12">
@@ -66,8 +99,8 @@
                                         <?php if (count($error->getErrors()) > 0) { ?>
                                             <h4><i class="glyphicon glyphicon-alert"></i> Errors</h4>
                                             <ul>
-                                                <?php foreach ($error->getErrors() as $error) { ?>
-                                                    <li><?php echo $error ?></li>
+                                                <?php foreach ($error->getErrors() as $errorMessage) { ?>
+                                                    <li><?php echo $errorMessage ?></li>
                                                 <?php } ?>
                                             </ul>
                                         <?php } ?>
@@ -91,15 +124,26 @@
                                         <?php } ?>
 
                                         <?php if (count($error->getCodes()) > 0) { ?>
-                                            <h4><i class="glyphicon glyphicon-align-left"></i> Codes</h4>
-                                            <?php foreach ($error->getCodes() as $code) { ?>
-                                                <div class="panel panel-default">
+                                            <?php foreach ($error->getCodes() as $indexCode => $code) { ?>
+                                                <div class="panel panel-default<?php if ($indexCode === count($error->getCodes()) - 1) { ?> margin-bottom-0<?php } ?>">
                                                     <div class="panel-heading">
                                                         <i class="glyphicon glyphicon-file"></i>
-                                                        <?php echo $code['file'] ?>, line <?php echo $code['line'] ?>
+                                                        <?php echo $code['file'] ?>, line <?php echo $code['startLine'] ?>
                                                     </div>
                                                     <div class="panel-body">
-                                                        <pre class="code"><code class="php"><?php echo $code['code'] ?></code></pre>
+                                                        <div class="code-line-number">
+                                                            <pre class="code"><?php foreach ($code['lines'] as $lineIndex => $line) { echo $lineIndex . "\r\n"; } ?></pre>
+                                                        </div>
+                                                        <div class="code-lines">
+                                                            <pre class="code"><code class="php"><?php foreach ($code['lines'] as $lineIndex => $line) {
+                                                                if ($code['highlight'] === $lineIndex) {
+                                                                    echo '<span class="code-highlight">' . $line . '</span>';
+                                                                } else {
+                                                                    echo $line;
+                                                                }
+                                                                echo "\r\n";
+                                                            } ?></code></pre>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             <?php } ?>

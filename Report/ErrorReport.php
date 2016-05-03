@@ -116,16 +116,24 @@ class ErrorReport
 
     /**
      * @param string $file
-     * @param int $line
-     * @param string $code
+     * @param int $startLine
+     * @param array $lines
+     * @param int|null $highlight
      * @return $this
      */
-    public function addCode($file, $line, $code)
+    public function addCode($file, $startLine, array $lines, $highlight = null)
     {
+        $indexedLines = [];
+        $lineIndex = 1;
+        foreach ($lines as $line) {
+            $indexedLines[$startLine + $lineIndex] = rtrim($line);
+            $lineIndex++;
+        }
         $this->codes[] = [
             'file' => $file,
-            'line' => $line,
-            'code' => $code
+            'startLine' => $startLine,
+            'lines' => $indexedLines,
+            'highlight' => $highlight
         ];
 
         return $this;
@@ -162,13 +170,8 @@ class ErrorReport
             $this->addCode(
                 $reflection->getFileName(),
                 $startLine,
-                implode(null, array_slice($classLines, $startLine, $coutLines))
+                array_slice($classLines, $startLine, $coutLines)
             );
-            $this->codes[] = [
-                'file' => $reflection->getFileName(),
-                'line' => $startLine,
-                'code' => implode(null, array_slice($classLines, $startLine, $coutLines))
-            ];
         }
 
         return $this;
@@ -182,13 +185,14 @@ class ErrorReport
     public function addCodeLinePreview($file, $line)
     {
         $lines = file($file);
-        $startLine = max(0, $line - 4);
+        $startLine = max(0, $line - 5);
         $endLine = min(count($lines), $line + 4);
 
         $this->addCode(
             $file,
-            $line,
-            implode(null, array_slice($lines, $startLine, $endLine - $startLine))
+            $startLine,
+            array_slice($lines, $startLine, $endLine - $startLine),
+            $line
         );
 
         return $this;
