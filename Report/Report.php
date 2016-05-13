@@ -7,6 +7,9 @@ class Report
     /** @var \DateTime */
     protected $date;
 
+    /** @var PassedReport[] */
+    protected $passed = [];
+
     /** @var ErrorReport[] */
     protected $errors = [];
 
@@ -40,5 +43,24 @@ class Report
     public function getErrors()
     {
         return $this->errors;
+    }
+
+    /**
+     * @param PassedReport $passed
+     * @return $this
+     */
+    public function addPassed(PassedReport $passed)
+    {
+        $this->passed[] = $passed;
+
+        return $this;
+    }
+
+    /**
+     * @return PassedReport[]
+     */
+    public function getPassed()
+    {
+        return $this->passed;
     }
 }

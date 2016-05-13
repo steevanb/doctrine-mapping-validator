@@ -4,6 +4,8 @@ namespace steevanb\DoctrineMappingValidator\Report;
 
 class ErrorReport
 {
+    use AddCodeTrait;
+
     /** @var string */
     protected $message;
 
@@ -18,9 +20,6 @@ class ErrorReport
 
     /** @var string[] */
     protected $links = [];
-
-    /** @var array */
-    protected $codes = [];
 
     /**
      * @param string $message
@@ -112,97 +111,5 @@ class ErrorReport
     public function getLinks()
     {
         return $this->links;
-    }
-
-    /**
-     * @param string $file
-     * @param int $startLine
-     * @param array $lines
-     * @param int|null $highlight
-     * @return $this
-     */
-    public function addCode($file, $startLine, array $lines, $highlight = null)
-    {
-        $indexedLines = [];
-        $lineIndex = 1;
-        foreach ($lines as $line) {
-            $indexedLines[$startLine + $lineIndex] = rtrim($line);
-            $lineIndex++;
-        }
-        $this->codes[] = [
-            'file' => $file,
-            'startLine' => $startLine,
-            'lines' => $indexedLines,
-            'highlight' => $highlight
-        ];
-
-        return $this;
-    }
-
-    /**
-     * @param object $object
-     * @param string $method
-     * @return $this
-     */
-    public function addMethodCode($object, $method)
-    {
-        $reflection = new \ReflectionClass($object);
-        $reflectionMethod = $reflection->getMethod($method);
-        $classLines = file($reflection->getFileName());
-
-        $startLine = $reflectionMethod->getStartLine();
-        $coutLines = $reflectionMethod->getEndLine() - $startLine;
-        // if method is in trait, getStartLine() return line of "last" used trait (not the right one)
-        $findMethodDeclaration = 2;
-        $methodDeclarationFound = false;
-        while ($findMethodDeclaration > 0) {
-            $line = array_slice($classLines, $startLine, 1)[0];
-            if (strpos($line, $method) === false) {
-                $startLine--;
-                $coutLines++;
-                $findMethodDeclaration--;
-            } else {
-                $methodDeclarationFound = true;
-                break;
-            }
-        }
-        if ($methodDeclarationFound) {
-            $this->addCode(
-                $reflection->getFileName(),
-                $startLine,
-                array_slice($classLines, $startLine, $coutLines)
-            );
-        }
-
-        return $this;
-    }
-
-    /**
-     * @param string $file
-     * @param int $line
-     * @return $this
-     */
-    public function addCodeLinePreview($file, $line)
-    {
-        $lines = file($file);
-        $startLine = max(0, $line - 5);
-        $endLine = min(count($lines), $line + 4);
-
-        $this->addCode(
-            $file,
-            $startLine,
-            array_slice($lines, $startLine, $endLine - $startLine),
-            $line
-        );
-
-        return $this;
-    }
-
-    /**
-     * @return array
-     */
-    public function getCodes()
-    {
-        return $this->codes;
     }
 }

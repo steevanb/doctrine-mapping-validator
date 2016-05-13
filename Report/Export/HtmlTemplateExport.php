@@ -1,5 +1,32 @@
 <?php
 /** @var steevanb\DoctrineMappingValidator\Report\Report $report */
+
+function showCode($code, $index, $countCodes)
+{
+    ?>
+    <div class="panel panel-default<?php if ($index === $countCodes - 1) { ?> margin-bottom-0<?php } ?>">
+        <div class="panel-heading">
+            <i class="glyphicon glyphicon-file"></i>
+            <?php echo $code['file'] ?>, line <?php echo $code['line'] ?>
+        </div>
+        <div class="panel-body">
+            <div class="code-line-number">
+                <pre class="code"><?php foreach ($code['lines'] as $lineIndex => $line) { echo $lineIndex . "\r\n"; } ?></pre>
+            </div>
+            <div class="code-lines">
+                <pre class="code"><code class="php"><?php foreach ($code['lines'] as $lineIndex => $line) {
+                    if ($code['highlight'] === $lineIndex) {
+                        echo '<span class="code-highlight">' . $line . '</span>';
+                    } else {
+                        echo $line;
+                    }
+                    echo "\r\n";
+                } ?></code></pre>
+            </div>
+        </div>
+    </div>
+    <?php
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -51,7 +78,7 @@
                 float: left;
             }
             .code-highlight {
-                background-color: #71F149;
+                background-color: #a7f28e;
             }
             .margin-bottom-0 {
                 margin-bottom: 0px !important;
@@ -63,35 +90,73 @@
                 background-color: #9A0B0B !important;
                 color: white !important;
             }
+            .badge-success {
+                background-color: #2dbc2d !important;
+                color: white !important;
+            }
+            .panel-heading[data-show-hide=true] {
+                cursor: pointer;
+            }
         </style>
     </head>
     <body>
-            <div class="row">
-                <div class="col-lg-2 col-md-3 col-sm-4">
-                    <ul class="nav nav-pills nav-stacked">
-                        <li><a>Summmary</a></li>
-                        <li>
-                            <a>
-                                Passed<?php if (count($report->getErrors()) > 1) { ?>s<?php } ?>
-                                <div class="badge badge-right badge-danger"><?php echo count($report->getErrors()) ?></div>
-                            </a>
-                        </li>
-                        <li class="active">
-                            <a>
-                                Error<?php if (count($report->getErrors()) > 1) { ?>s<?php } ?>
-                                <div class="badge badge-right badge-danger"><?php echo count($report->getErrors()) ?></div>
-                            </a>
-                        </li>
-                    </ul>
+        <div class="row">
+            <div class="col-lg-2 col-md-3 col-sm-4">
+                <ul class="nav nav-pills nav-stacked">
+                    <li data-report="passed">
+                        <a class="menu" data-report="passed">
+                            Passed
+                            <div class="badge badge-right badge-success"><?php echo count($report->getPassed()) ?></div>
+                        </a>
+                    </li>
+                    <li class="active" data-report="errors">
+                        <a class="menu" data-report="errors">
+                            Error<?php if (count($report->getErrors()) > 1) { ?>s<?php } ?>
+                            <div class="badge badge-right badge-danger"><?php echo count($report->getErrors()) ?></div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-lg-10 col-md-9 col-sm-8">
+                <div id="report-passed" style="display: none">
+                    <?php foreach ($report->getPassed() as $passed) { ?>
+                        <div class="row">
+                            <div class="col-lg-12">
+                                <div class="panel panel-success">
+                                    <div class="panel-heading" data-show-hide="true">
+                                        <h3 class="panel-title">
+                                            <i class="glyphicon glyphicon-menu-right"></i>
+                                            <?php echo $passed->getMessage() ?>
+                                        </h3>
+                                    </div>
+                                    <div class="panel-body" style="display: none">
+                                        <?php if (count($passed->getInfos()) > 0) { ?>
+                                            <h4><i class="glyphicon glyphicon-question-sign"></i> Infos</h4>
+                                            <ul>
+                                                <?php foreach ($passed->getInfos() as $info) { ?>
+                                                    <li><?php echo $info ?></li>
+                                                <?php } ?>
+                                            </ul>
+                                        <?php } ?>
+
+                                        <?php foreach ($passed->getCodes() as $indexCode => $code) { ?>
+                                            <?php showCode($code, $indexCode, count($passed->getCodes())) ?>
+                                        <?php } ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php } ?>
                 </div>
-                <div class="col-lg-10 col-md-9 col-sm-8">
+
+                <div id="report-errors">
                     <?php foreach ($report->getErrors() as $error) { ?>
                         <div class="row">
                             <div class="col-lg-12">
                                 <div class="panel panel-danger">
-                                    <div class="panel-heading">
+                                    <div class="panel-heading" data-show-hide="true">
                                         <h3 class="panel-title">
-                                            <i class="glyphicon glyphicon-chevron-right"></i>
+                                            <i class="glyphicon glyphicon-menu-down"></i>
                                             <?php echo $error->getMessage() ?>
                                         </h3>
                                     </div>
@@ -123,30 +188,8 @@
                                             </ul>
                                         <?php } ?>
 
-                                        <?php if (count($error->getCodes()) > 0) { ?>
-                                            <?php foreach ($error->getCodes() as $indexCode => $code) { ?>
-                                                <div class="panel panel-default<?php if ($indexCode === count($error->getCodes()) - 1) { ?> margin-bottom-0<?php } ?>">
-                                                    <div class="panel-heading">
-                                                        <i class="glyphicon glyphicon-file"></i>
-                                                        <?php echo $code['file'] ?>, line <?php echo $code['startLine'] ?>
-                                                    </div>
-                                                    <div class="panel-body">
-                                                        <div class="code-line-number">
-                                                            <pre class="code"><?php foreach ($code['lines'] as $lineIndex => $line) { echo $lineIndex . "\r\n"; } ?></pre>
-                                                        </div>
-                                                        <div class="code-lines">
-                                                            <pre class="code"><code class="php"><?php foreach ($code['lines'] as $lineIndex => $line) {
-                                                                if ($code['highlight'] === $lineIndex) {
-                                                                    echo '<span class="code-highlight">' . $line . '</span>';
-                                                                } else {
-                                                                    echo $line;
-                                                                }
-                                                                echo "\r\n";
-                                                            } ?></code></pre>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            <?php } ?>
+                                        <?php foreach ($error->getCodes() as $indexCode => $code) { ?>
+                                            <?php showCode($code, $indexCode, count($error->getCodes())) ?>
                                         <?php } ?>
                                     </div>
                                 </div>
@@ -155,10 +198,47 @@
                     <?php } ?>
                 </div>
             </div>
+        </div>
 
+        <script src="https://code.jquery.com/jquery-2.2.3.min.js" integrity="sha256-a23g1Nt4dtEYOj7bR+vTu7+T8VP13humZFBJNIYoEJo=" crossorigin="anonymous"></script>
         <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/highlight.min.js"></script>
         <script type="text/javascript">
             hljs.initHighlightingOnLoad();
+
+            $(document).on('ready', function() {
+                $('.menu').on('click', function() {
+                    var reportType = $(this).attr('data-report');
+                    var reportPassed = $('#report-passed');
+                    var menuPassed = $('li[data-report=passed]');
+                    var reportErrors = $('#report-errors');
+                    var menuErrors = $('li[data-report=errors]');
+
+                    if (reportType === 'passed') {
+                        reportPassed.css('display', 'block');
+                        menuPassed.addClass('active');
+                        reportErrors.css('display', 'none');
+                        menuErrors.removeClass('active');
+                    } else {
+                        reportPassed.css('display', 'none');
+                        menuPassed.removeClass('active');
+                        reportErrors.css('display', 'block');
+                        menuErrors.addClass('active');
+                    }
+                });
+
+                $('.panel-heading[data-show-hide=true]').on('click', function() {
+                    var panelBody = $(this).siblings('div.panel-body');
+                    var glyphIcon = $(this).find('h3.panel-title i.glyphicon');
+                    console.log(glyphIcon);
+                    if (panelBody.css('display') === 'none') {
+                        panelBody.css('display', 'block');
+                        glyphIcon.removeClass('glyphicon-menu-right').addClass('glyphicon-menu-down');
+                    } else {
+                        panelBody.css('display', 'none');
+                        glyphIcon.addClass('glyphicon-menu-right').removeClass('glyphicon-menu-down');
+                    }
+                });
+            });
         </script>
     </body>
 </html>
