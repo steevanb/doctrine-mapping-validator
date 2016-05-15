@@ -39,14 +39,18 @@ class ValidatorServiceOneToMany
 
     /**
      * @param EntityManagerInterface $manager
-     * @param object $object
+     * @param object $entity
      * @param string $property
      * @return ValidatorOneToManyInterface
+     * @throws \Exception
      */
-    public function getValidator(EntityManagerInterface $manager, $object, $property)
+    public function getValidator(EntityManagerInterface $manager, $entity, $property)
     {
         $managerHash = spl_object_hash($manager);
-        $class = get_class($object);
+        if (is_object($entity) === false) {
+            throw new \Exception('Excepted $entity to be an entity, ' . gettype($entity) . ' given.');
+        }
+        $class = get_class($entity);
 
         if (
             array_key_exists($managerHash, $this->validators)
@@ -58,21 +62,19 @@ class ValidatorServiceOneToMany
             $validator = new DefaultValidatorOneToMany();
         }
 
-        return $validator
-            ->setManager($manager)
-            ->setLeftObject($object)
-            ->setLeftObjectProperty($property)
-            ->setReport(new Report());
+        return $validator;
     }
 
     /**
      * @param EntityManagerInterface $manager
-     * @param object $object
+     * @param object $entity
      * @param string $property
      * @return Report
      */
-    public function validate(EntityManagerInterface $manager, $object, $property)
+    public function validate(EntityManagerInterface $manager, $entity, $property)
     {
-        return $this->getValidator($manager, $object, $property)->validate();
+        return $this
+            ->getValidator($manager, $entity, $property)
+            ->validate($manager, $entity, $property);
     }
 }

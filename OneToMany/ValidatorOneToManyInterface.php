@@ -9,30 +9,9 @@ interface ValidatorOneToManyInterface
 {
     /**
      * @param EntityManagerInterface $manager
-     * @return $this
-     */
-    public function setManager(EntityManagerInterface $manager);
-
-    /**
-     * @param object $object
-     * @return $this
-     */
-    public function setLeftObject($object);
-
-    /**
+     * @param object $entity
      * @param string $property
-     * @return $this
+     * @return Report
      */
-    public function setLeftObjectProperty($property);
-
-    /**
-     * @param Report $report
-     * @return $this
-     */
-    public function setReport(Report $report);
-
-    /**
-     * @return $this
-     */
-    public function validate();
+    public function validate(EntityManagerInterface $manager, $entity, $property);
 }
