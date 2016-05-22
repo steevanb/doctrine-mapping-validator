@@ -179,6 +179,17 @@ function showCode($code, $index, $countCodes)
                                             </ul>
                                         <?php } ?>
 
+                                        <?php if (count($error->getLinks()) > 0) { ?>
+                                            <h4><i class="glyphicon glyphicon-link"></i> Links</h4>
+                                            <ul>
+                                                <?php foreach ($error->getLinks() as $url) { ?>
+                                                    <li>
+                                                        <a href="<?php echo $url ?>" target="_blank"><?php echo $url ?></a>
+                                                    </li>
+                                                <?php } ?>
+                                            </ul>
+                                        <?php } ?>
+
                                         <?php if (count($error->getFiles()) > 0) { ?>
                                             <h4><i class="glyphicon glyphicon-file"></i> Files</h4>
                                             <ul>
