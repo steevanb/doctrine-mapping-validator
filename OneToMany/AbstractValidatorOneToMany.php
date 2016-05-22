@@ -2,6 +2,7 @@
 
 namespace steevanb\DoctrineMappingValidator\OneToMany;
 
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\ORMInvalidArgumentException;
@@ -68,6 +69,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
 
         try {
             $this
+                ->validateLeftEntityDefaultValue($passedReport)
                 ->validateAddRightEntity($passedReport)
                 ->validateRemoveRightEntity($passedReport);
         } catch (ReportException $e) {
@@ -116,6 +118,36 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
             ->getAssociationMappedByTargetField($this->leftEntityProperty);
         $this->rightEntitySetter = 'set' . ucfirst($this->rightEntityroperty);
         $this->rightEntityGetter = 'get' . ucfirst($this->rightEntityroperty);
+    }
+
+    /**
+     * @param PassedReport $passedReport
+     * @return $this
+     * @throws ReportException
+     */
+    protected function validateLeftEntityDefaultValue(PassedReport $passedReport)
+    {
+        $this->assertLeftEntityGetterMethodExists();
+        $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ]);
+        if ($collection instanceof Collection === false) {
+            $message = $this->leftEntityClass . '::' . $this->leftEntityGetter . '()';
+            $message .= ' must return an instance of ' . Collection::class;
+            $errorReport = new ErrorReport($message);
+
+            $help = 'You should call $this->' . '$' . $this->leftEntityProperty;
+            $help .= ' = new ' . ArrayCollection::class . '() in ' . $this->leftEntityClass . '::__construct().';
+            $errorReport->addHelp($help);
+
+            $errorReport->addLink('http://doctrine-orm.readthedocs.io/projects/doctrine-orm/en/latest/reference/association-mapping.html#one-to-many-bidirectional');
+
+            throw new ReportException($this->report, $errorReport);
+        } else {
+            $info = $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' is correctly initialized';
+            $info .= ' as an instance of ' . Collection::class . '.';
+            $passedReport->addInfo($info);
+        }
+
+        return $this;
     }
 
     /**
@@ -239,6 +271,19 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     }
 
     /**
+     * @return $this
+     */
+    protected function assertLeftEntityGetterMethodExists()
+    {
+        $getterError = 'Method ' . $this->leftEntityClass . '::' . $this->leftEntityGetter . '() does not exist.';
+        $getterHelp = 'You must create this method, in order to retrieve ';
+        $getterHelp .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
+        $this->assertMethodExists($this->leftEntity, $this->leftEntityGetter, $getterError, $getterHelp);
+
+        return $this;
+    }
+
+    /**
      * @param PassedReport $passedReport
      * @return $this
      * @throws ReportException
@@ -276,19 +321,22 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
         if ($mappedBy !== $this->leftEntity) {
             $leftEntityReflection = new \ReflectionClass($this->leftEntity);
             $message = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() ';
-            $message .= 'does not call ' . $this->rightEntityClass . '::$' . $this->rightEntityroperty . '.';
+            $message .= 'does not call ' . $this->rightEntityClass . '::' . $this->rightEntitySetter . '($this).';
 
             $errorReport = new ErrorReport($message);
             $errorReport->addFile($leftEntityReflection->getFileName());
             $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdder);
 
+            $help = 'As Doctrine use Many side of relations to retrieve informations at update / insert, ';
+            $help .= $this->leftEntityClass . '::' . $this->leftEntityAdder . '() should call ';
+            $help .= $this->rightEntityClass . '::' . $this->rightEntitySetter . '($this). Otherwhise, ';
+            $help .= $this->rightEntityClass . ' will not be saved with relation to ' . $this->leftEntityClass . '.';
+            $errorReport->addHelp($help);
+
             throw new ReportException($this->report, $errorReport);
         }
 
-        $getterError = 'Method ' . $this->leftEntityClass . '::' . $this->leftEntityGetter . '() does not exist.';
-        $getterHelp = 'You must create this method, in order to retrieve ';
-        $getterHelp .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
-        $this->assertMethodExists($this->leftEntity, $this->leftEntityGetter, $getterError, $getterHelp);
+        $this->assertLeftEntityGetterMethodExists();
 
         $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ], $this->rightEntity);
         if ($collection instanceof Collection === false) {
