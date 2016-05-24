@@ -19,6 +19,9 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     /** @var Report */
     protected $report;
 
+    /** @var PassedReport */
+    protected $passedReport;
+
     /** @var object */
     protected $leftEntity;
 
@@ -29,13 +32,19 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     protected $leftEntityProperty;
 
     /** @var string */
-    protected $leftEntityGetter;
-
-    /** @var string */
     protected $leftEntityAdder;
 
     /** @var string */
+    protected $leftEntitySetter;
+
+    /** @var string */
+    protected $leftEntityGetter;
+
+    /** @var string */
     protected $leftEntityRemover;
+
+    /** @var string */
+    protected $leftEntityClearer;
 
     /** @var object */
     protected $rightEntity;
@@ -44,7 +53,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     protected $rightEntityClass;
 
     /** @var string */
-    protected $rightEntityroperty;
+    protected $rightEntityProperty;
 
     /** @var string */
     protected $rightEntityGetter;
@@ -64,14 +73,15 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
 
         $message = $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' : ';
         $message .= 'oneToMany with ' . $this->rightEntityClass;
-        $passedReport = new PassedReport($message);
+        $this->passedReport = new PassedReport($message);
         $success = true;
 
         try {
             $this
-                ->validateLeftEntityDefaultValue($passedReport)
-                ->validateAddRightEntity($passedReport)
-                ->validateRemoveRightEntity($passedReport);
+                ->validateMethodsExists()
+                ->validateLeftEntityDefaultValue()
+                ->validateAddRightEntity()
+                ->validateRemoveRightEntity();
         } catch (ReportException $e) {
             $success = false;
         } catch (\Exception $e) {
@@ -83,7 +93,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
         }
 
         if ($success) {
-            $this->report->addPassed($passedReport);
+            $this->report->addPassed($this->passedReport);
         }
 
         return $this->report;
@@ -103,62 +113,139 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
         $this->leftEntity = $entity;
         $this->leftEntityClass = get_class($entity);
         $this->leftEntityProperty = $property;
-        $this->leftEntityGetter = 'get' . ucfirst($this->leftEntityProperty);
         $this->leftEntityAdder = 'add' . ucfirst(substr($this->leftEntityProperty, 0, -1));
+        $this->leftEntitySetter = 'set' . ucfirst($this->leftEntityProperty);
+        $this->leftEntityGetter = 'get' . ucfirst($this->leftEntityProperty);
         $this->leftEntityRemover = 'remove' . ucfirst(substr($this->leftEntityProperty, 0, -1));
+        $this->leftEntityClearer = 'clear' . ucfirst($this->leftEntityProperty);
 
         $this->rightEntityClass = $this
             ->manager
             ->getClassMetadata($this->leftEntityClass)
             ->getAssociationMappings()[$this->leftEntityProperty]['targetEntity'];
         $this->rightEntity = $this->createRightEntity();
-        $this->rightEntityroperty = $this
+        $this->rightEntityProperty = $this
             ->manager
             ->getClassMetadata($this->leftEntityClass)
             ->getAssociationMappedByTargetField($this->leftEntityProperty);
-        $this->rightEntitySetter = 'set' . ucfirst($this->rightEntityroperty);
-        $this->rightEntityGetter = 'get' . ucfirst($this->rightEntityroperty);
+        $this->rightEntitySetter = 'set' . ucfirst($this->rightEntityProperty);
+        $this->rightEntityGetter = 'get' . ucfirst($this->rightEntityProperty);
     }
 
     /**
-     * @param PassedReport $passedReport
      * @return $this
-     * @throws ReportException
      */
-    protected function validateLeftEntityDefaultValue(PassedReport $passedReport)
+    protected function validateMethodsExists()
     {
-        $this->assertLeftEntityGetterMethodExists();
-        $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ]);
-        if ($collection instanceof Collection === false) {
-            $message = $this->leftEntityClass . '::' . $this->leftEntityGetter . '()';
-            $message .= ' must return an instance of ' . Collection::class;
-            $errorReport = new ErrorReport($message);
+        $leftEntityAdder = 'You must create this method in order to add ' . $this->rightEntityClass . ' in ';
+        $leftEntityAdder .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
 
-            $help = 'You should call $this->' . '$' . $this->leftEntityProperty;
-            $help .= ' = new ' . ArrayCollection::class . '() in ' . $this->leftEntityClass . '::__construct().';
-            $errorReport->addHelp($help);
+        $leftEntitySetter = 'You must create this method in order to set all ' . $this->rightEntityClass . ' to ';
+        $leftEntitySetter .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
 
-            $errorReport->addLink('http://doctrine-orm.readthedocs.io/projects/doctrine-orm/en/latest/reference/association-mapping.html#one-to-many-bidirectional');
+        $leftEntityGetter = 'You must create this method, in order to get ';
+        $leftEntityGetter .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
 
-            throw new ReportException($this->report, $errorReport);
-        } else {
-            $info = $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' is correctly initialized';
-            $info .= ' as an instance of ' . Collection::class . '.';
-            $passedReport->addInfo($info);
+        $leftEntityRemover = 'You must create this method in order to remove ' . $this->rightEntityClass . ' in ';
+        $leftEntityRemover .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
+
+        $leftEntityClearer = 'You must create this method in order to clear all ' . $this->rightEntityClass . ' in ';
+        $leftEntityClearer .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
+
+        $rightEntitySetter = 'You must create this method in order to set ' . $this->leftEntityClass . ' to ';
+        $rightEntitySetter .= $this->rightEntityClass . '::$' . $this->rightEntityProperty . '.';
+
+        $rightEntityGetter = 'You must create this method in order to get ';
+        $rightEntityGetter .= $this->rightEntityClass . '::$' . $this->rightEntityProperty . '.';
+
+        $methods = [
+            [ 'entity' => $this->leftEntity, 'method' => $this->leftEntityAdder, 'message' => $leftEntityAdder ],
+            [ 'entity' => $this->leftEntity, 'method' => $this->leftEntitySetter, 'message' => $leftEntitySetter ],
+            [ 'entity' => $this->leftEntity, 'method' => $this->leftEntityGetter, 'message' => $leftEntityGetter ],
+            [ 'entity' => $this->leftEntity, 'method' => $this->leftEntityRemover, 'message' => $leftEntityRemover ],
+            [ 'entity' => $this->leftEntity, 'method' => $this->leftEntityClearer, 'message' => $leftEntityClearer ],
+            [ 'entity' => $this->rightEntity, 'method' => $this->rightEntitySetter, 'message' => $rightEntitySetter ],
+            [ 'entity' => $this->rightEntity, 'method' => $this->rightEntityGetter, 'message' => $rightEntityGetter ],
+        ];
+
+        foreach ($methods as $method) {
+            $this->assertMethodExists($method['entity'], $method['method'], $method['message']);
         }
 
         return $this;
     }
 
     /**
-     * @param PassedReport $passedReport
+     * @param object $entity
+     * @param string $method
+     * @param string|null $error
+     * @param string|null $help
+     * @return $this
+     * @throws ReportException
+     */
+    protected function assertMethodExists($entity, $method, $error = null, $help = null)
+    {
+        if (method_exists($entity, $method) === false) {
+            $class = get_class($entity);
+
+            $message = $class . '::' . $method . '() does not exists.';
+            $errorReport = new ErrorReport($message);
+            if ($error !== null) {
+                $errorReport->addError($error);
+            }
+            if ($help !== null) {
+                $errorReport->addHelp($help);
+            }
+            $this->addEntityFileNameToErrorReport($entity, $errorReport);
+
+            throw new ReportException($this->report, $errorReport);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     * @throws ReportException
+     */
+    protected function validateLeftEntityDefaultValue()
+    {
+        $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ]);
+        if ($collection instanceof Collection === false) {
+            $message = $this->leftEntityClass . '::' . $this->leftEntityGetter . '()';
+            $message .= ' must return an instance of ' . Collection::class;
+            $errorReport = new ErrorReport($message);
+
+            $helpCollection = 'You should call $this->$' . $this->leftEntityProperty;
+            $helpCollection .= ' = new ' . ArrayCollection::class . '() in ' . $this->leftEntityClass . '::__construct().';
+            $errorReport->addHelp($helpCollection);
+
+            $helpReturn = $this->leftEntityClass . '::' . $this->leftEntityGetter . '() should return ';
+            $helpReturn .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . '.';
+            $errorReport->addHelp($helpReturn);
+
+            $this->addEntityFileNameToErrorReport($this->leftEntity, $errorReport);
+            $errorReport->addMethodCode($this->leftEntity, '__construct');
+            $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
+
+            throw new ReportException($this->report, $errorReport);
+        } else {
+            $info = $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' is correctly initialized';
+            $info .= ' as an instance of ' . Collection::class . '.';
+            $this->passedReport->addInfo($info);
+        }
+
+        return $this;
+    }
+
+    /**
      * @return $this
      */
-    protected function validateAddRightEntity(PassedReport $passedReport)
+    protected function validateAddRightEntity()
     {
-        $this->addRightEntity($passedReport);
-        $this->flushAddRightEntity($passedReport);
-        $passedReport->addMethodCode($this->leftEntity, $this->leftEntityAdder);
+        $this->addRightEntity();
+        $this->flushAddRightEntity();
+        $this->passedReport->addMethodCode($this->leftEntity, $this->leftEntityAdder);
 
         return $this;
     }
@@ -201,14 +288,6 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     }
 
     /**
-     * @return string
-     */
-    protected function getLeftEntityAddMethodCall()
-    {
-        return $this->leftEntityClass . '::' . $this->leftEntityAdder . '()';
-    }
-
-    /**
      * @param object $entity
      * @param ErrorReport $errorReport
      * @return $this
@@ -242,71 +321,20 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     }
 
     /**
-     * @param object $entity
-     * @param string $method
-     * @param string|null $error
-     * @param string|null $help
      * @return $this
      * @throws ReportException
      */
-    protected function assertMethodExists($entity, $method, $error = null, $help = null)
+    protected function addRightEntity()
     {
-        if (method_exists($entity, $method) === false) {
-            $class = get_class($entity);
-
-            $message = $class . '::' . $method . '() does not exists.';
-            $errorReport = new ErrorReport($message);
-            if ($error !== null) {
-                $errorReport->addError($error);
-            }
-            if ($help !== null) {
-                $errorReport->addHelp($help);
-            }
-            $this->addEntityFileNameToErrorReport($entity, $errorReport);
-
-            throw new ReportException($this->report, $errorReport);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return $this
-     */
-    protected function assertLeftEntityGetterMethodExists()
-    {
-        $getterError = 'Method ' . $this->leftEntityClass . '::' . $this->leftEntityGetter . '() does not exist.';
-        $getterHelp = 'You must create this method, in order to retrieve ';
-        $getterHelp .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
-        $this->assertMethodExists($this->leftEntity, $this->leftEntityGetter, $getterError, $getterHelp);
-
-        return $this;
-    }
-
-    /**
-     * @param PassedReport $passedReport
-     * @return $this
-     * @throws ReportException
-     */
-    protected function addRightEntity(PassedReport $passedReport)
-    {
-        $adderError = ' You must create this method in order to add entity in ';
-        $adderError .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
-        $this->assertMethodExists($this->leftEntity, $this->leftEntityAdder, $adderError);
-
-        $getterError = ' You must create this method in order to get ' . $this->leftEntityClass;
-        $getterError .= ' from ' . $this->rightEntityClass . '.';
-        $this->assertMethodExists($this->rightEntity, $this->rightEntityGetter, $getterError);
-
         call_user_func([ $this->leftEntity, $this->leftEntityAdder ], $this->rightEntity);
         $this->assertRightEntityIsInCollection();
 
         call_user_func([ $this->leftEntity, $this->leftEntityAdder ], $this->rightEntity);
         $this->assertOnlyOneRightEntityIsInCollection();
 
-        $info = $this->getLeftEntityAddMethodCall() . ' add only one ' . $this->rightEntityClass;
+        $info = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() add only one ' . $this->rightEntityClass;
         $info .= ', even with mutiple calls.';
-        $passedReport->addInfo($info);
+        $this->passedReport->addInfo($info);
 
         return $this;
     }
@@ -319,24 +347,32 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     {
         $mappedBy = call_user_func([ $this->rightEntity, $this->rightEntityGetter ]);
         if ($mappedBy !== $this->leftEntity) {
-            $leftEntityReflection = new \ReflectionClass($this->leftEntity);
-            $message = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() ';
-            $message .= 'does not call ' . $this->rightEntityClass . '::' . $this->rightEntitySetter . '($this).';
-
+            $message = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() does not set ';
+            $message .= $this->rightEntityClass . '::$' . $this->rightEntityProperty;
             $errorReport = new ErrorReport($message);
-            $errorReport->addFile($leftEntityReflection->getFileName());
-            $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdder);
 
-            $help = 'As Doctrine use Many side of relations to retrieve informations at update / insert, ';
-            $help .= $this->leftEntityClass . '::' . $this->leftEntityAdder . '() should call ';
-            $help .= $this->rightEntityClass . '::' . $this->rightEntitySetter . '($this). Otherwhise, ';
-            $help .= $this->rightEntityClass . ' will not be saved with relation to ' . $this->leftEntityClass . '.';
-            $errorReport->addHelp($help);
+            $helpLeftentity = 'As Doctrine use Many side of relations to get informations at update / insert, ';
+            $helpLeftentity .= $this->leftEntityClass . '::' . $this->leftEntityAdder . '() should call ';
+            $helpLeftentity .= $this->rightEntityClass . '::' . $this->rightEntitySetter . '($this). Otherwhise, ';
+            $helpLeftentity .= $this->rightEntityClass . ' will not be saved with relation to ' . $this->leftEntityClass . '.';
+            $errorReport->addHelp($helpLeftentity);
+
+            $helpRightEntity = $this->rightEntityClass . '::' . $this->rightEntitySetter . '() should set ';
+            $helpRightEntity .= $this->rightEntityClass . '::$' . $this->rightEntityProperty . '.';
+            $errorReport->addHelp($helpRightEntity);
+
+            $helpRightEntity = $this->rightEntityClass . '::' . $this->rightEntityGetter . '() should return ';
+            $helpRightEntity .= $this->rightEntityClass . '::$' . $this->rightEntityProperty . '.';
+            $errorReport->addHelp($helpRightEntity);
+
+            $this->addEntityFileNameToErrorReport($this->leftEntity, $errorReport);
+
+            $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdder);
+            $errorReport->addMethodCode($this->rightEntity, $this->rightEntitySetter);
+            $errorReport->addMethodCode($this->rightEntity, $this->rightEntityGetter);
 
             throw new ReportException($this->report, $errorReport);
         }
-
-        $this->assertLeftEntityGetterMethodExists();
 
         $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ], $this->rightEntity);
         if ($collection instanceof Collection === false) {
@@ -365,7 +401,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
         }
 
         if ($countEntities > 1) {
-            $message = $this->getLeftEntityAddMethodCall() . ' should not add same instance of ';
+            $message = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() should not add same instance of ';
             $message .= $this->rightEntityClass . ' twice.';
             $errorReport = new ErrorReport($message);
             $errorReport->addMethodCode($this->rightEntity, $this->leftEntityAdder);
@@ -377,11 +413,10 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     }
 
     /**
-     * @param PassedReport $passedReport
      * @return $this
      * @throws ReportException
      */
-    protected function flushAddRightEntity(PassedReport $passedReport)
+    protected function flushAddRightEntity()
     {
         $emClass = get_class($this->manager);
 
@@ -409,7 +444,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
         }
 
         $info = $emClass . '::flush() insert ' . $this->rightEntityClass . ' correctly.';
-        $passedReport->addInfo($info);
+        $this->passedReport->addInfo($info);
 
         $this->manager->refresh($this->leftEntity);
         $this->manager->refresh($this->rightEntity);
@@ -418,18 +453,17 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
         $info = $this->rightEntityClass . ' is correctly reloaded in ';
         $info .= $this->leftEntityClass . '::$, ';
         $info .= 'even after calling ' . $emClass . '::refresh() on all tested entities.';
-        $passedReport->addInfo($info);
+        $this->passedReport->addInfo($info);
 
         return $this;
     }
 
     /**
      * @return $this
-     * @param PassedReport $passedReport
      * @throws ReportException
      * @throws \Exception
      */
-    protected function validateRemoveRightEntity(PassedReport $passedReport)
+    protected function validateRemoveRightEntity()
     {
         if ($this->rightEntity instanceof $this->rightEntityClass === false) {
             throw new \Exception(
@@ -454,7 +488,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
             throw new ReportException($this->report, $errorReport);
         }
 
-        $passedReport->addInfo(
+        $this->passedReport->addInfo(
             $this->leftEntityRemover . ' remove ' . $this->rightEntityClass . ' correctly.'
         );
 
@@ -467,10 +501,6 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
      */
     protected function removeRightEntity()
     {
-        $removerError = ' You must create this method in order to remove ' . $this->rightEntityClass . ' in ';
-        $removerError .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
-        $this->assertMethodExists($this->leftEntity, $this->leftEntityRemover, $removerError);
-
         try {
             call_user_func([ $this->leftEntity, $this->leftEntityRemover ], $this->rightEntity);
         } catch (\Exception $e) {

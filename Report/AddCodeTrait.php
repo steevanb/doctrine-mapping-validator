@@ -39,6 +39,10 @@ trait AddCodeTrait
      */
     public function addMethodCode($object, $method)
     {
+        if (method_exists($object, $method) === false) {
+            return $this;
+        }
+
         $reflection = new \ReflectionClass($object);
         $reflectionMethod = $reflection->getMethod($method);
         $classLines = file($reflection->getFileName());

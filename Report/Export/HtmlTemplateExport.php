@@ -7,7 +7,7 @@ function showCode($code, $index, $countCodes)
     <div class="panel panel-default<?php if ($index === $countCodes - 1) { ?> margin-bottom-0<?php } ?>">
         <div class="panel-heading">
             <i class="glyphicon glyphicon-file"></i>
-            <?php echo $code['file'] ?>, line <?php echo $code['line'] ?>
+            <?php echo $code['file'] ?>
         </div>
         <div class="panel-body">
             <div class="code-line-number">
