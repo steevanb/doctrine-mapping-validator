@@ -9,9 +9,9 @@ interface ValidatorOneToManyInterface
 {
     /**
      * @param EntityManagerInterface $manager
-     * @param object $entity
+     * @param string $leftEntityClassName
      * @param string $property
      * @return Report
      */
-    public function validate(EntityManagerInterface $manager, $entity, $property);
+    public function validate(EntityManagerInterface $manager, $leftEntityClassName, $property);
 }

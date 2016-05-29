@@ -39,25 +39,21 @@ class ValidatorServiceOneToMany
 
     /**
      * @param EntityManagerInterface $manager
-     * @param object $entity
+     * @param string $leftEntityClassName
      * @param string $property
      * @return ValidatorOneToManyInterface
      * @throws \Exception
      */
-    public function getValidator(EntityManagerInterface $manager, $entity, $property)
+    public function getValidator(EntityManagerInterface $manager, $leftEntityClassName, $property)
     {
         $managerHash = spl_object_hash($manager);
-        if (is_object($entity) === false) {
-            throw new \Exception('Excepted $entity to be an entity, ' . gettype($entity) . ' given.');
-        }
-        $class = get_class($entity);
 
         if (
             array_key_exists($managerHash, $this->validators)
-            && array_key_exists($class, $this->validators[$managerHash])
-            && array_key_exists($property, $this->validators[$managerHash][$class])
+            && array_key_exists($leftEntityClassName, $this->validators[$managerHash])
+            && array_key_exists($property, $this->validators[$managerHash][$leftEntityClassName])
         ) {
-            $validator = $this->validators[$managerHash][$class][$property];
+            $validator = $this->validators[$managerHash][$leftEntityClassName][$property];
         } else {
             $validator = new DefaultValidatorOneToMany();
         }
@@ -67,14 +63,14 @@ class ValidatorServiceOneToMany
 
     /**
      * @param EntityManagerInterface $manager
-     * @param object $entity
+     * @param string $leftEntityClassName
      * @param string $property
      * @return Report
      */
-    public function validate(EntityManagerInterface $manager, $entity, $property)
+    public function validate(EntityManagerInterface $manager, $leftEntityClassName, $property)
     {
         return $this
-            ->getValidator($manager, $entity, $property)
-            ->validate($manager, $entity, $property);
+            ->getValidator($manager, $leftEntityClassName, $property)
+            ->validate($manager, $leftEntityClassName, $property);
     }
 }
