@@ -1,10 +1,15 @@
 <?php
 /** @var steevanb\DoctrineMappingValidator\Report\Report $report */
 
+/**
+ * @param array $code
+ * @param int $index
+ * @param int $countCodes
+ */
 function showCode($code, $index, $countCodes)
 {
     ?>
-    <div class="panel panel-default<?php if ($index === $countCodes - 1) { ?> margin-bottom-0<?php } ?>">
+    <div class="panel panel-default margin-left-25 <?php if ($index === $countCodes - 1) { ?> margin-bottom-0<?php } ?>">
         <div class="panel-heading">
             <i class="glyphicon glyphicon-file"></i>
             <?php echo $code['file'] ?>
@@ -83,6 +88,9 @@ function showCode($code, $index, $countCodes)
             .margin-bottom-0 {
                 margin-bottom: 0px !important;
             }
+            .margin-left-25 {
+                margin-left: 25px;
+            }
             .badge-right {
                 float: right;
             }
@@ -118,7 +126,7 @@ function showCode($code, $index, $countCodes)
                 </ul>
             </div>
             <div class="col-lg-10 col-md-9 col-sm-8">
-                <div id="report-passed" style="display: none">
+                <div id="report-passed">
                     <?php foreach ($report->getPassed() as $passed) { ?>
                         <div class="row">
                             <div class="col-lg-12">
@@ -129,18 +137,21 @@ function showCode($code, $index, $countCodes)
                                             <?php echo $passed->getMessage() ?>
                                         </h3>
                                     </div>
-                                    <div class="panel-body" style="display: none">
-                                        <?php if (count($passed->getInfos()) > 0) { ?>
-                                            <h4><i class="glyphicon glyphicon-question-sign"></i> Infos</h4>
+                                    <div class="panel-body">
+                                        <?php foreach ($passed->getTests() as $name => $messages) { ?>
+                                            <h4><i class="glyphicon glyphicon-ok"></i> <?php echo $name ?></h4>
                                             <ul>
-                                                <?php foreach ($passed->getInfos() as $info) { ?>
-                                                    <li><?php echo $info ?></li>
+                                                <?php foreach ($messages as $message) { ?>
+                                                    <li><?php echo $message ?></li>
                                                 <?php } ?>
                                             </ul>
                                         <?php } ?>
 
-                                        <?php foreach ($passed->getCodes() as $indexCode => $code) { ?>
-                                            <?php showCode($code, $indexCode, count($passed->getCodes())) ?>
+                                        <?php if (count($passed->getCodes()) > 0) { ?>
+                                            <h4><i class="glyphicon glyphicon-file"></i> Codes</h4>
+                                            <?php foreach ($passed->getCodes() as $indexCode => $code) { ?>
+                                                <?php showCode($code, $indexCode, count($passed->getCodes())) ?>
+                                            <?php } ?>
                                         <?php } ?>
                                     </div>
                                 </div>
@@ -199,8 +210,11 @@ function showCode($code, $index, $countCodes)
                                             </ul>
                                         <?php } ?>
 
-                                        <?php foreach ($error->getCodes() as $indexCode => $code) { ?>
-                                            <?php showCode($code, $indexCode, count($error->getCodes())) ?>
+                                        <?php if (count($error->getCodes()) > 0) { ?>
+                                            <h4><i class="glyphicon glyphicon-file"></i> Codes</h4>
+                                            <?php foreach ($error->getCodes() as $indexCode => $code) { ?>
+                                                <?php showCode($code, $indexCode, count($error->getCodes())) ?>
+                                            <?php } ?>
                                         <?php } ?>
                                     </div>
                                 </div>

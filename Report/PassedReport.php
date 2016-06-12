@@ -9,8 +9,8 @@ class PassedReport
     /** @var string */
     protected $message;
 
-    /** @var string[] */
-    protected $infos = [];
+    /** @var array */
+    protected $tests = [];
 
     /**
      * @param string $message
@@ -29,21 +29,25 @@ class PassedReport
     }
 
     /**
-     * @param string $info
+     * @param $name
+     * @param $message
      * @return $this
      */
-    public function addInfo($info)
+    public function addTest($name, $message)
     {
-        $this->infos[] = $info;
+        if (array_key_exists($name, $this->tests) === false) {
+            $this->tests[$name] = [];
+        }
+        $this->tests[$name][] = $message;
 
         return $this;
     }
 
     /**
-     * @return string[]
+     * @return array
      */
-    public function getInfos()
+    public function getTests()
     {
-        return $this->infos;
+        return $this->tests;
     }
 }
