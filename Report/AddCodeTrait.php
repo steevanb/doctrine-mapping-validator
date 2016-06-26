@@ -33,7 +33,7 @@ trait AddCodeTrait
     }
 
     /**
-     * @param object $object
+     * @param object|string $object
      * @param string $method
      * @return $this
      */
