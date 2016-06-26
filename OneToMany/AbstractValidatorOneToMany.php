@@ -103,6 +103,7 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
         try {
             $this
                 ->validateMethodsExists()
+                ->validateMethodsParameters()
                 ->validateLeftEntityDefaultValue()
                 ->validateAddRightEntity()
                 ->validateRemoveRightEntity()
@@ -278,6 +279,87 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
                 $errorReport->addHelp($help);
             }
             $this->addEntityFileNameToErrorReport($entity, $errorReport);
+
+            throw new ReportException($this->report, $errorReport);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     * @throws ReportException
+     */
+    protected function validateMethodsParameters()
+    {
+        $rightEntityParameterName = substr($this->leftEntityProperty, 0, -1);
+        $leftEntityParameters = [
+            $this->leftEntityAdder => [ $rightEntityParameterName => [ $this->rightEntityClass ] ],
+            $this->leftEntitySetter => [ $this->leftEntityProperty => [ Collection::class ] ],
+            $this->leftEntityGetter => [],
+            $this->leftEntityRemover => [ $rightEntityParameterName => [ $this->rightEntityClass ] ],
+            $this->leftEntityClearer => []
+        ];
+        foreach ($leftEntityParameters as $method => $parameters) {
+            $this
+                ->assertMethodParameters($this->leftEntityClass, $method, $parameters);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param string $className
+     * @param string $method
+     * @param array $parameters
+     * @return $this
+     * @throws ReportException
+     */
+    protected function assertMethodParameters($className, $method, array $parameters)
+    {
+        $reportError = false;
+
+        $reflection = new \ReflectionClass($className);
+        if ($reflection->getMethod($method)->getNumberOfRequiredParameters() !== count($parameters)) {
+            $reportError = true;
+        } else {
+            $methodParameters = $reflection->getMethod($method)->getParameters();
+            $parameterIndex = 0;
+            foreach ($parameters as $types) {
+                $type = (string)$methodParameters[$parameterIndex]->getType();
+                if (in_array($type, $types) === false) {
+                    $reportError = true;
+                    break;
+                }
+
+                $parameterIndex++;
+            }
+        }
+
+        if ($reportError) {
+            $message = $className . '::' . $method . '() signature is wrong.';
+            $errorReport = new ErrorReport($message);
+
+            $help = $className . '::' . $method . '() must have at least this ';
+            $help .= (count($parameters) === 1) ? 'parameter: ' : 'parameters: ';
+            $helpParameters = [];
+            foreach ($parameters as $name => $types) {
+                switch (count($types)) {
+                    case 0:
+                        $helpParameters[] = '$' . $name;
+                        break;
+                    case 1:
+                        $helpParameters[] = $types[0] . ' $' . $name;
+                        break;
+                    case 2:
+                        $helpParameters[] = $types[0] . ' $' . $name . ' = ' . $types[2];
+                        break;
+                }
+            }
+            $help .= implode(', ', $helpParameters) . '.';
+            $errorReport->addHelp($help);
+
+            $errorReport->addMethodCode($className, $method);
 
             throw new ReportException($this->report, $errorReport);
         }
@@ -808,6 +890,27 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
 
             throw new ReportException($this->report, $errorReport);
         }
+
+        if (
+            call_user_func([ $this->rightEntity, $this->rightEntityGetter ]) !== $this->leftEntity
+            || call_user_func([ $this->rightEntity2, $this->rightEntityGetter ]) !== $this->leftEntity
+        ) {
+            $message = $this->leftEntityClass . '::' . $this->leftEntitySetter . '() doest not set ';
+            $message .= $this->rightEntityClass . '::$' . $this->rightEntityProperty;
+            $errorReport = new ErrorReport($message);
+
+            $help = 'This method should call $this->' . $this->leftEntityClearer . '(), and ';
+            $help .= $this->leftEntityAdder . '() for each ' . $this->rightEntityClass . ' passed.';
+            $errorReport->addHelp($help);
+
+            $errorReport->addMethodCode($this->leftEntity, $this->leftEntitySetter);
+
+            throw new ReportException($this->report, $errorReport);
+        }
+
+        $message = 'Set ' . $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' correctly, ';
+        $message .= 'even with multiple calls.';
+        $this->passedReport->addTest($this->leftEntitySetterTestName, $message);
 
         return $this;
     }
