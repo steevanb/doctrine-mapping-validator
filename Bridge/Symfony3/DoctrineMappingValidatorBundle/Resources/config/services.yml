@@ -1,0 +1,3 @@
+services:
+    doctrine_mapping_validator.one_to_many:
+        class: steevanb\DoctrineMappingValidator\OneToMany\ValidatorServiceOneToMany
