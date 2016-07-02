@@ -5,11 +5,40 @@ namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
+use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
 
 trait ValidateLeftEntityAdderTrait
 {
-    use PropertiesTrait;
+    use CreateEntityTrait;
+    use ValidateMethodsTrait;
+
+    /** @var object */
+    protected $leftEntity;
+
+    /** @var object */
+    protected $rightEntity;
+
+    /** @var string */
+    protected $leftEntityAdderValidationName;
+
+    /** @var string */
+    protected $leftEntityAdderMethod;
+
+    /**
+     * @return string
+     */
+    abstract protected function getLeftEntityProperty();
+
+    /**
+     * @return string
+     */
+    abstract protected function getRightEntityPropperty();
+
+    /**
+     * @return Report
+     */
+    abstract protected function getReport();
 
     /**
      * @return $this
@@ -17,26 +46,76 @@ trait ValidateLeftEntityAdderTrait
     protected function validateLeftEntityAdder()
     {
         $this
-            ->assertLeftEntityAdder()
-            ->assertFlushAdderRightEntity()
-            ->assertReloadAdderRightEntity();
+            ->leftEntityAdderInit()
+            ->leftEntityAdderValidateLeftEntityMethods()
+            ->leftEntityAdderValidateRightEntityMethods()
+            ->leftEntityAdderValidateAdder()
+            ->leftEntityAdderValidateFlush()
+            ->leftEntityAdderValidateRefresh();
 
         return $this;
     }
 
     /**
      * @return $this
-     * @throws ReportException
      */
-    protected function assertLeftEntityAdder()
+    protected function leftEntityAdderInit()
     {
-        call_user_func([ $this->leftEntity, $this->leftEntityAdder ], $this->rightEntity);
-        $this->assertRightEntityIsInCollection();
+        $this->leftEntity = $this->createLeftEntity();
+        $this->rightEntity = $this->createRightEntity();
+        $this->leftEntityAdderMethod = 'add' . ucfirst(substr($this->getLeftEntityProperty(), 0, -1));
+        $this->leftEntityAdderValidationName =
+            $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '()';
 
-        call_user_func([ $this->leftEntity, $this->leftEntityAdder ], $this->rightEntity);
-        $this->assertOnlyOneRightEntityIsInCollection();
+        return $this;
+    }
 
-        $this->addPassedAdderOnlyOneRightEntityTest();
+    /**
+     * @return $this
+     */
+    protected function leftEntityAdderValidateLeftEntityMethods()
+    {
+        $adderMessage = 'You must create this method in order to add ' . $this->getRightEntityClassName() . ' in ';
+        $adderMessage .= $this->getLeftEntityClassName() . '::$' . $this->getLeftEntityProperty() . ' collection.';
+        $adderParameters = [ substr($this->getLeftEntityProperty(), 0, -1) => [ $this->getRightEntityClassName() ] ];
+
+        $getterMessage = 'You must create this method, in order to get ';
+        $getterMessage .= $this->getLeftEntityClassName() . '::$' . $this->getLeftEntityProperty() . ' collection.';
+        $getterParameters = [];
+
+        $methods = [
+            [ $this->leftEntityAdderMethod, $adderMessage, $adderParameters ],
+            [ 'get' . ucfirst($this->getLeftEntityProperty()), $getterMessage, $getterParameters ],
+        ];
+
+        $this->validateMethods($this->leftEntity, $methods, $this->leftEntityAdderValidationName);
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function leftEntityAdderValidateRightEntityMethods()
+    {
+        $idGetterMessage = 'You must create this method in order to get ';
+        $idGetterMessage .= $this->getRightEntityClassName() . '::$id';
+        $idGetterParameters = [];
+
+        $setterMessage = 'You must create this method in order to set ' . $this->getLeftEntityClassName() . ' to ';
+        $setterMessage .= $this->getRightEntityClassName() . '::$' . $this->getRightEntityPropperty() . '.';
+        $setterParameters = [ $this->getRightEntityPropperty() => [ $this->getLeftEntityClassName(), 'null' ] ];
+
+        $getterMessage = 'You must create this method in order to get ';
+        $getterMessage .= $this->getRightEntityClassName() . '::$' . $this->getRightEntityPropperty() . '.';
+        $getterParameters = [];
+
+        $methods = [
+            [ 'getId', $idGetterMessage, $idGetterParameters ],
+            [ 'set' . ucfirst($this->getRightEntityPropperty()), $setterMessage, $setterParameters ],
+            [ 'get' . ucfirst($this->getRightEntityPropperty()), $getterMessage, $getterParameters ]
+        ];
+        $this->validateMethods($this->rightEntity, $methods, $this->leftEntityAdderValidationName);
 
         return $this;
     }
@@ -45,16 +124,33 @@ trait ValidateLeftEntityAdderTrait
      * @return $this
      * @throws ReportException
      */
-    protected function assertRightEntityIsInCollection()
+    protected function leftEntityAdderValidateAdder()
+    {
+        call_user_func([ $this->leftEntity, $this->leftEntityAdderMethod ], $this->rightEntity);
+        $this->leftEntityAdderValidateRightEntityIsInCollection();
+
+        call_user_func([ $this->leftEntity, $this->leftEntityAdderMethod ], $this->rightEntity);
+        $this->leftEntityAdderValidateOnlyOneRightEntityIsInCollection();
+
+        $this->leftEntityAdderAddOnlyOneRightEntityValidation();
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     * @throws ReportException
+     */
+    protected function leftEntityAdderValidateRightEntityIsInCollection()
     {
         $mappedBy = call_user_func([ $this->rightEntity, $this->rightEntityGetter ]);
         if ($mappedBy !== $this->leftEntity) {
-            $this->throwLeftEntityAdderDoesntSetRightEntityProperty();
+            $this->leftEntityAdderThrowAdderDoesntSetRightEntityProperty();
         }
 
         $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ]);
         if ($collection instanceof Collection === false) {
-            $this->throwAdderLeftEntityGetterMustReturnCollection($collection);
+            $this->leftEntityAdderThrowLeftEntityGetterMustReturnCollection($collection);
         }
 
         $isInCollection = false;
@@ -65,7 +161,7 @@ trait ValidateLeftEntityAdderTrait
             }
         }
         if ($isInCollection === false) {
-            $this->throwLeftEntityAdderDoesntAddRightEntity();
+            $this->leftEntityAdderThrowAdderDoNotAddRightEntity();
         }
 
         return $this;
@@ -75,7 +171,7 @@ trait ValidateLeftEntityAdderTrait
      * @return $this
      * @throws ReportException
      */
-    protected function assertOnlyOneRightEntityIsInCollection()
+    protected function leftEntityAdderValidateOnlyOneRightEntityIsInCollection()
     {
         $countEntities = 0;
         foreach (call_user_func([ $this->leftEntity, $this->leftEntityGetter ], $this->rightEntity) as $entity) {
@@ -85,7 +181,7 @@ trait ValidateLeftEntityAdderTrait
         }
 
         if ($countEntities > 1) {
-            $this->throwLeftEntityAdderShouldNotAddSameRightEntityTwice();
+            $this->leftEntityAdderThrowAdderShouldNotAddSameRightEntityTwice();
         }
 
         return $this;
@@ -95,19 +191,19 @@ trait ValidateLeftEntityAdderTrait
      * @return $this
      * @throws ReportException
      */
-    protected function assertFlushAdderRightEntity()
+    protected function leftEntityAdderValidateFlush()
     {
         try {
-            $this->manager->flush();
+            $this->getManager()->flush();
         } catch (ORMInvalidArgumentException $e) {
-            $this->throwAdderOrmInvalidArgumentException($e);
+            $this->leftEntityAdderThrowAdderOrmInvalidArgumentException($e);
         }
 
         if (call_user_func([ $this->rightEntity, $this->rightEntityIdGetter ]) === null) {
-            $this->throwRightEntityIdIsNullAfterLeftEntityAdderAndFlush();
+            $this->leftEntityAdderThrowRightEntityIdIsNull();
         }
 
-        $this->addPasseAdderFlushTest();
+        $this->leftEntityAdderAddFlushValidation();
 
         return $this;
     }
@@ -115,13 +211,13 @@ trait ValidateLeftEntityAdderTrait
     /**
      * @return $this
      */
-    protected function assertReloadAdderRightEntity()
+    protected function leftEntityAdderValidateRefresh()
     {
-        $this->manager->refresh($this->leftEntity);
-        $this->manager->refresh($this->rightEntity);
-        $this->assertRightEntityIsInCollection();
+        $this->getManager()->refresh($this->leftEntity);
+        $this->getManager()->refresh($this->rightEntity);
+        $this->leftEntityAdderValidateRightEntityIsInCollection();
 
-        $this->addPassedAdderFlushReloadTest();
+        $this->leftEntityAdderAddRefreshValidation();
 
         return $this;
     }
@@ -129,131 +225,131 @@ trait ValidateLeftEntityAdderTrait
     /**
      * @throws ReportException
      */
-    protected function throwLeftEntityAdderDoesntSetRightEntityProperty()
+    protected function leftEntityAdderThrowAdderDoesntSetRightEntityProperty()
     {
-        $message = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() does not set ';
-        $message .= $this->rightEntityClass . '::$' . $this->rightEntityProperty;
+        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() does not set ';
+        $message .= $this->getRightEntityClassName() . '::$' . $this->getRightEntityPropperty();
         $errorReport = new ErrorReport($message);
 
         $helpLeftentity = 'As Doctrine use Many side of relations to get informations at update / insert, ';
-        $helpLeftentity .= $this->leftEntityClass . '::' . $this->leftEntityAdder . '() should call ';
-        $helpLeftentity .= $this->rightEntityClass . '::' . $this->rightEntitySetter . '($this). Otherwhise, ';
-        $helpLeftentity .= $this->rightEntityClass . ' will not be saved with relation to ' . $this->leftEntityClass . '.';
+        $helpLeftentity .= $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() should call ';
+        $helpLeftentity .= $this->getRightEntityClassName() . '::' . $this->rightEntitySetter . '($this). Otherwhise, ';
+        $helpLeftentity .= $this->getRightEntityClassName() . ' will not be saved with relation to ' . $this->getLeftEntityClassName() . '.';
         $errorReport->addHelp($helpLeftentity);
 
-        $helpRightEntity = $this->rightEntityClass . '::' . $this->rightEntitySetter . '() should set ';
-        $helpRightEntity .= $this->rightEntityClass . '::$' . $this->rightEntityProperty . '.';
+        $helpRightEntity = $this->getRightEntityClassName() . '::' . $this->rightEntitySetter . '() should set ';
+        $helpRightEntity .= $this->getRightEntityClassName() . '::$' . $this->getRightEntityPropperty() . '.';
         $errorReport->addHelp($helpRightEntity);
 
-        $helpRightEntity = $this->rightEntityClass . '::' . $this->rightEntityGetter . '() should return ';
-        $helpRightEntity .= $this->rightEntityClass . '::$' . $this->rightEntityProperty . '.';
+        $helpRightEntity = $this->getRightEntityClassName() . '::' . $this->rightEntityGetter . '() should return ';
+        $helpRightEntity .= $this->getRightEntityClassName() . '::$' . $this->getRightEntityPropperty() . '.';
         $errorReport->addHelp($helpRightEntity);
 
-        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdder);
+        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdderMethod);
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntitySetter);
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntityGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
      * @param mixed $collection
      * @throws ReportException
      */
-    protected function throwAdderLeftEntityGetterMustReturnCollection($collection) {
-        $message = $this->leftEntityClass . '::' . $this->leftEntityGetter . '() ';
+    protected function leftEntityAdderThrowLeftEntityGetterMustReturnCollection($collection) {
+        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityGetter . '() ';
         $message .= 'must return an instance of ' . Collection::class . ', ' . gettype($collection) . ' returned.';
         $errorReport = new ErrorReport($message);
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
      * @throws ReportException
      */
-    protected function throwLeftEntityAdderDoesntAddRightEntity()
+    protected function leftEntityAdderThrowAdderDoNotAddRightEntity()
     {
-        $message = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() ';
-        $message .= 'does not add ' . $this->rightEntityClass . '.';
+        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() ';
+        $message .= 'does not add ' . $this->getRightEntityClassName() . '.';
         $errorReport = new ErrorReport($message);
 
-        $help = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() should add ';
-        $help .= $this->rightEntityClass . ' in ' . $this->leftEntityClass . '::$' . $this->leftEntityProperty . '.';
+        $help = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() should add ';
+        $help .= $this->getRightEntityClassName() . ' in ' . $this->getLeftEntityClassName() . '::$' . $this->getLeftEntityProperty() . '.';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdder);
+        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdderMethod);
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
      * @throws ReportException
      */
-    protected function throwLeftEntityAdderShouldNotAddSameRightEntityTwice()
+    protected function leftEntityAdderThrowAdderShouldNotAddSameRightEntityTwice()
     {
-        $message = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() ';
-        $message .= 'should not add same ' . $this->rightEntityClass . ' instance twice.';
+        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() ';
+        $message .= 'should not add same ' . $this->getRightEntityClassName() . ' instance twice.';
         $errorReport = new ErrorReport($message);
 
-        $help = $this->leftEntityClass . '::' . $this->leftEntityAdder . '() should use ';
-        $help .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . '->contains().';
+        $help = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() should use ';
+        $help .= $this->getLeftEntityClassName() . '::$' . $this->getLeftEntityProperty() . '->contains().';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdder);
+        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdderMethod);
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
      * @param ORMInvalidArgumentException $exception
      * @throws ReportException
      */
-    protected function throwAdderOrmInvalidArgumentException(ORMInvalidArgumentException $exception)
+    protected function leftEntityAdderThrowAdderOrmInvalidArgumentException(ORMInvalidArgumentException $exception)
     {
         $message = 'ORMInvalidArgumentException occured after calling ';
-        $message .= $this->leftEntityClass . '::' . $this->leftEntityAdder . '(), ';
-        $message .= 'then ' . $this->managerClass . '::flush().';
+        $message .= $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '(), ';
+        $message .= 'then ' . get_class($this->getManager()) . '::flush().';
         $errorReport = new ErrorReport($message);
 
         $errorReport->addError($exception->getMessage());
-        $this->addLeftEntityPersistError($errorReport);
+        $this->leftEntityAdderAddLeftEntityPersistError($errorReport);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
      * @throws ReportException
      */
-    protected function throwRightEntityIdIsNullAfterLeftEntityAdderAndFlush()
+    protected function leftEntityAdderThrowRightEntityIdIsNull()
     {
-        $message = $this->rightEntityClass . '::$id is null after calling ';
-        $message .= $this->leftEntityClass . '::' . $this->leftEntityAdder . '(), ';
-        $message .= 'then ' . $this->managerClass . '::flush().';
+        $message = $this->getRightEntityClassName() . '::$id is null after calling ';
+        $message .= $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '(), ';
+        $message .= 'then ' . get_class($this->getManager()) . '::flush().';
         $errorReport = new ErrorReport($message);
 
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntityIdGetter);
-        $this->addLeftEntityPersistError($errorReport);
+        $this->leftEntityAdderAddLeftEntityPersistError($errorReport);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
      * @param ErrorReport $errorReport
      * @return $this
      */
-    protected function addLeftEntityPersistError(ErrorReport $errorReport)
+    protected function leftEntityAdderAddLeftEntityPersistError(ErrorReport $errorReport)
     {
         $propertyMetadata = $this
-            ->manager
-            ->getClassMetadata($this->leftEntityClass)
-            ->associationMappings[$this->leftEntityProperty];
+            ->getManager()
+            ->getClassMetadata($this->getLeftEntityClassName())
+            ->associationMappings[$this->getLeftEntityProperty()];
 
         if (in_array('persist', $propertyMetadata['cascade']) === false) {
             $help = 'You have to set "cascade: persist" on your mapping, ';
-            $help .= 'or explicitly call ' . $this->managerClass . '::persist().';
+            $help .= 'or explicitly call ' . get_class($this->getManager()) . '::persist().';
             $errorReport->addHelp($help);
         }
 
@@ -263,10 +359,10 @@ trait ValidateLeftEntityAdderTrait
     /**
      * @return $this
      */
-    protected function addPassedAdderOnlyOneRightEntityTest()
+    protected function leftEntityAdderAddOnlyOneRightEntityValidation()
     {
-        $message = 'Add only one ' . $this->rightEntityClass . ', even with mutiple calls with same instance.';
-        $this->passedReport->addTest($this->leftEntityAdderTestName, $message);
+        $message = 'Add only one ' . $this->getRightEntityClassName() . ', even with mutiple calls with same instance.';
+        $this->getValidationReport()->addValidation($this->leftEntityAdderValidationName, $message);
 
         return $this;
     }
@@ -274,11 +370,11 @@ trait ValidateLeftEntityAdderTrait
     /**
      * @return $this
      */
-    protected function addPasseAdderFlushTest()
+    protected function leftEntityAdderAddFlushValidation()
     {
-        $message = $this->managerClass . '::flush() ';
-        $message .= 'save ' . $this->leftEntityClass . ' and ' . $this->rightEntityClass . ' correctly.';
-        $this->passedReport->addTest($this->leftEntityAdderTestName, $message);
+        $message = get_class($this->getManager()) . '::flush() ';
+        $message .= 'save ' . $this->getLeftEntityClassName() . ' and ' . $this->getRightEntityClassName() . ' correctly.';
+        $this->getValidationReport()->addValidation($this->leftEntityAdderValidationName, $message);
 
         return $this;
     }
@@ -286,12 +382,12 @@ trait ValidateLeftEntityAdderTrait
     /**
      * @return $this
      */
-    protected function addPassedAdderFlushReloadTest()
+    protected function leftEntityAdderAddRefreshValidation()
     {
-        $message = $this->rightEntityClass . ' is correctly reloaded in ';
-        $message .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ', ';
-        $message .= 'even after calling ' . $this->managerClass . '::refresh() on all tested entities.';
-        $this->passedReport->addTest($this->leftEntityAdderTestName, $message);
+        $message = $this->getRightEntityClassName() . ' is correctly reloaded in ';
+        $message .= $this->getLeftEntityClassName() . '::$' . $this->getLeftEntityProperty() . ', ';
+        $message .= 'even after calling ' . get_class($this->getManager()) . '::refresh() on all tested entities.';
+        $this->getValidationReport()->addValidation($this->leftEntityAdderValidationName, $message);
 
         return $this;
     }

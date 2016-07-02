@@ -7,11 +7,11 @@ class Report
     /** @var \DateTime */
     protected $date;
 
-    /** @var PassedReport[] */
-    protected $passed = [];
-
     /** @var ErrorReport[] */
     protected $errors = [];
+
+    /** @var ValidationReport[] */
+    protected $validations = [];
 
     public function __construct()
     {
@@ -46,21 +46,21 @@ class Report
     }
 
     /**
-     * @param PassedReport $passed
+     * @param ValidationReport $report
      * @return $this
      */
-    public function addPassed(PassedReport $passed)
+    public function addValidation(ValidationReport $report)
     {
-        $this->passed[] = $passed;
+        $this->validations[] = $report;
 
         return $this;
     }
 
     /**
-     * @return PassedReport[]
+     * @return ValidationReport[]
      */
-    public function getPassed()
+    public function getValidations()
     {
-        return $this->passed;
+        return $this->validations;
     }
 }

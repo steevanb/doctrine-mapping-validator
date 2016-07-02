@@ -3,7 +3,7 @@
 namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
 
 use Doctrine\ORM\EntityManagerInterface;
-use steevanb\DoctrineMappingValidator\Report\PassedReport;
+use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 use steevanb\DoctrineMappingValidator\Report\Report;
 
 trait PropertiesTrait
@@ -17,8 +17,8 @@ trait PropertiesTrait
     /** @var Report */
     protected $report;
 
-    /** @var PassedReport */
-    protected $passedReport;
+    /** @var ValidationReport */
+    protected $validationReport;
 
     /** @var string */
     protected $initializationTestName = 'Initialization';
@@ -76,6 +76,9 @@ trait PropertiesTrait
 
     /** @var string */
     protected $rightEntitySetter;
+
+    /** @var string */
+    protected $rightEntitySetterParameterName;
 
     /** @var string */
     protected $rightEntityIdGetter;

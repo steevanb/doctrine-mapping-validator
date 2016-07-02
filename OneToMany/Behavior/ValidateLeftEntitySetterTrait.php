@@ -141,7 +141,7 @@ trait ValidateLeftEntitySetterTrait
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntitySetter);
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -154,7 +154,7 @@ trait ValidateLeftEntitySetterTrait
         $errorReport = new ErrorReport($message);
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -184,7 +184,7 @@ trait ValidateLeftEntitySetterTrait
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntitySetter);
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntityGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -200,7 +200,7 @@ trait ValidateLeftEntitySetterTrait
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntityIdGetter);
         $this->setLeftEntityPersistError($errorReport);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -210,7 +210,7 @@ trait ValidateLeftEntitySetterTrait
     {
         $message = $this->managerClass . '::flush() ';
         $message .= 'save ' . $this->leftEntityClass . ' and ' . $this->rightEntityClass . ' correctly.';
-        $this->passedReport->addTest($this->leftEntitySetterTestName, $message);
+        $this->validationReport->addValidation($this->leftEntitySetterTestName, $message);
 
         return $this;
     }
@@ -229,7 +229,7 @@ trait ValidateLeftEntitySetterTrait
         $errorReport->addError($exception->getMessage());
         $this->setLeftEntityPersistError($errorReport);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -267,7 +267,7 @@ trait ValidateLeftEntitySetterTrait
 
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntitySetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -277,7 +277,7 @@ trait ValidateLeftEntitySetterTrait
     {
         $message = 'Set ' . $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' correctly, ';
         $message .= 'even with multiple calls with same instances.';
-        $this->passedReport->addTest($this->leftEntitySetterTestName, $message);
+        $this->validationReport->addValidation($this->leftEntitySetterTestName, $message);
 
         return $this;
     }
@@ -290,7 +290,7 @@ trait ValidateLeftEntitySetterTrait
         $message = $this->rightEntityClass . ' is correctly reloaded in ';
         $message .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ', ';
         $message .= 'even after calling ' . $this->managerClass . '::refresh() on all tested entities.';
-        $this->passedReport->addTest($this->leftEntitySetterTestName, $message);
+        $this->validationReport->addValidation($this->leftEntitySetterTestName, $message);
 
         return $this;
     }

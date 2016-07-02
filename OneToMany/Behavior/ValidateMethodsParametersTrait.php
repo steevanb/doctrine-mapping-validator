@@ -146,7 +146,7 @@ trait ValidateMethodsParametersTrait
 
         $errorReport->addMethodCode($className, $method);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -158,7 +158,7 @@ trait ValidateMethodsParametersTrait
     {
         $message = 'All required methods have a correct signature into ' . $className . ' ';
         $message .= '(' . implode(', ', $methods) . ')';
-        $this->passedReport->addTest($this->initializationTestName, $message);
+        $this->validationReport->addValidation($this->initializationTestName, $message);
 
         return $this;
     }

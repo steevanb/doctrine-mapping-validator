@@ -47,7 +47,7 @@ trait ValidateLeftEntityPropertyDefaultValueTrait
         $errorReport->addMethodCode($this->leftEntity, '__construct');
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -57,7 +57,7 @@ trait ValidateLeftEntityPropertyDefaultValueTrait
     {
         $message = $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' is correctly initialized';
         $message .= ' as an instance of ' . Collection::class . '.';
-        $this->passedReport->addTest($this->initializationTestName, $message);
+        $this->validationReport->addValidation($this->initializationTestName, $message);
 
         return $this;
     }

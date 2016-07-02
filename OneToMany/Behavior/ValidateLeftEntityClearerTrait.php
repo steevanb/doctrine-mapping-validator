@@ -16,9 +16,4 @@ trait ValidateLeftEntityClearerTrait
         return $this;
     }
 
-    protected function clearRightEntities()
-    {
-        $this->lef
-    }
-
 }

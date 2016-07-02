@@ -2,7 +2,7 @@
 
 namespace steevanb\DoctrineMappingValidator\Report;
 
-class PassedReport
+class ValidationReport
 {
     use AddCodeTrait;
 
@@ -10,14 +10,17 @@ class PassedReport
     protected $message;
 
     /** @var array */
-    protected $tests = [];
+    protected $validations = [];
 
     /**
      * @param string $message
+     * @return $this
      */
-    public function __construct($message)
+    public function setMessage($message)
     {
         $this->message = $message;
+
+        return $this;
     }
 
     /**
@@ -29,16 +32,16 @@ class PassedReport
     }
 
     /**
-     * @param $name
-     * @param $message
+     * @param string $name
+     * @param string $message
      * @return $this
      */
-    public function addTest($name, $message)
+    public function addValidation($name, $message)
     {
-        if (array_key_exists($name, $this->tests) === false) {
-            $this->tests[$name] = [];
+        if (array_key_exists($name, $this->validations) === false) {
+            $this->validations[$name] = [];
         }
-        $this->tests[$name][] = $message;
+        $this->validations[$name][] = $message;
 
         return $this;
     }
@@ -46,8 +49,8 @@ class PassedReport
     /**
      * @return array
      */
-    public function getTests()
+    public function getValidations()
     {
-        return $this->tests;
+        return $this->validations;
     }
 }

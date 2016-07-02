@@ -145,7 +145,7 @@ trait ValidateLeftEntityRemoverTrait
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityRemover);
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntitySetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -167,7 +167,7 @@ trait ValidateLeftEntityRemoverTrait
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityRemover);
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntitySetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -187,7 +187,7 @@ trait ValidateLeftEntityRemoverTrait
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityRemover);
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -200,7 +200,7 @@ trait ValidateLeftEntityRemoverTrait
 
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntityIdGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -220,7 +220,7 @@ trait ValidateLeftEntityRemoverTrait
         $errorReport->addCodeLinePreview($exception->getFile(), $exception->getLine());
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityRemover);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -236,7 +236,7 @@ trait ValidateLeftEntityRemoverTrait
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityRemover);
         $errorReport->addMethodCode($this->rightEntity, $this->rightEntityIdGetter);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -251,7 +251,7 @@ trait ValidateLeftEntityRemoverTrait
 
         $errorReport->addMethodCode($this->leftEntity, $this->leftEntityRemover);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -262,7 +262,7 @@ trait ValidateLeftEntityRemoverTrait
         $message = 'RightEntity should be deleted after calling ' . $this->managerClass . '::flush()';
         $errorReport = new ErrorReport($message);
 
-        throw new ReportException($this->report, $errorReport);
+        throw new ReportException($this->getReport(), $errorReport);
     }
 
     /**
@@ -271,7 +271,7 @@ trait ValidateLeftEntityRemoverTrait
     protected function addPassedRightEntityPropertyToNullTest()
     {
         $message = 'Set ' . $this->rightEntityClass . '::$' . $this->rightEntityProperty . ' to null.';
-        $this->passedReport->addTest($this->leftEntityRemoverTestName, $message);
+        $this->validationReport->addValidation($this->leftEntityRemoverTestName, $message);
 
         return $this;
     }
@@ -283,7 +283,7 @@ trait ValidateLeftEntityRemoverTrait
     {
         $message = 'Remove ' . $this->rightEntityClass;
         $message .= ' in ' . $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' correctly.';
-        $this->passedReport->addTest($this->leftEntityRemoverTestName, $message);
+        $this->validationReport->addValidation($this->leftEntityRemoverTestName, $message);
 
         return $this;
     }
@@ -294,7 +294,7 @@ trait ValidateLeftEntityRemoverTrait
     protected function addPassedFlushRemoveRightEntity()
     {
         $message = $this->managerClass . '::flush() remove ' . $this->rightEntityClass . ' correctly.';
-        $this->passedReport->addTest($this->leftEntityRemoverTestName, $message);
+        $this->validationReport->addValidation($this->leftEntityRemoverTestName, $message);
 
         return $this;
     }

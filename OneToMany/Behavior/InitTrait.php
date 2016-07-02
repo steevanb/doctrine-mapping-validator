@@ -3,7 +3,7 @@
 namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
 
 use Doctrine\ORM\EntityManagerInterface;
-use steevanb\DoctrineMappingValidator\Report\PassedReport;
+use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 use steevanb\DoctrineMappingValidator\Report\Report;
 
 trait InitTrait
@@ -52,68 +52,6 @@ trait InitTrait
 
         $message = $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' : ';
         $message .= 'oneToMany with ' . $this->rightEntityClass;
-        $this->passedReport = new PassedReport($message);
-    }
-
-    /**
-     * @return object
-     */
-    protected function createLeftEntity()
-    {
-        $entity = new $this->leftEntityClass();
-        $this->defineRandomData($entity);
-
-        return $entity;
-    }
-
-    /**
-     * @return object
-     */
-    protected function createRightEntity()
-    {
-        $entity = new $this->rightEntityClass();
-        $this->defineRandomData($entity);
-
-        return $entity;
-    }
-
-    /**
-     * @param object $entity
-     * @return $this
-     */
-    protected function defineRandomData($entity)
-    {
-        $classMetadata = $this->manager->getClassMetadata(get_class($entity));
-        $identifiers = $classMetadata->getIdentifier();
-        foreach ($classMetadata->fieldMappings as $fieldMapping) {
-            if (
-                in_array($fieldMapping['columnName'], $identifiers) === false
-                && (
-                    array_key_exists('nullable', $fieldMapping) === false
-                    || $fieldMapping['nullable'] === false
-                )
-            ) {
-                $fieldValue = null;
-                switch ($fieldMapping['type']) {
-                    case 'string' :
-                        $fieldValue = uniqid();
-                        break;
-                    case 'smallint':
-                    case 'integer':
-                    case 'bigint':
-                        $fieldValue = rand(1, 1998);
-                        break;
-                    case 'date':
-                    case 'datetime':
-                        $fieldValue = new \DateTime();
-                        break;
-                }
-                if ($fieldValue !== null) {
-                    $entity->{'set' . $fieldMapping['columnName']}($fieldValue);
-                }
-            }
-        }
-
-        return $this;
+        $this->validationReport = new ValidationReport($message);
     }
 }

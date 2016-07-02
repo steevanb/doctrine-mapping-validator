@@ -114,7 +114,7 @@ function showCode($code, $index, $countCodes)
                     <li data-report="passed">
                         <a class="menu" data-report="passed">
                             Passed
-                            <div class="badge badge-right badge-success"><?php echo count($report->getPassed()) ?></div>
+                            <div class="badge badge-right badge-success"><?php echo count($report->getValidations()) ?></div>
                         </a>
                     </li>
                     <li class="active" data-report="errors">
@@ -127,7 +127,7 @@ function showCode($code, $index, $countCodes)
             </div>
             <div class="col-lg-10 col-md-9 col-sm-8">
                 <div id="report-passed">
-                    <?php foreach ($report->getPassed() as $passed) { ?>
+                    <?php foreach ($report->getValidations() as $passed) { ?>
                         <div class="row">
                             <div class="col-lg-12">
                                 <div class="panel panel-success">
@@ -138,7 +138,7 @@ function showCode($code, $index, $countCodes)
                                         </h3>
                                     </div>
                                     <div class="panel-body">
-                                        <?php foreach ($passed->getTests() as $name => $messages) { ?>
+                                        <?php foreach ($passed->getValidations() as $name => $messages) { ?>
                                             <h4><i class="glyphicon glyphicon-ok"></i> <?php echo $name ?></h4>
                                             <ul>
                                                 <?php foreach ($messages as $message) { ?>
