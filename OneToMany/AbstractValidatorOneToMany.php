@@ -3,6 +3,7 @@
 namespace steevanb\DoctrineMappingValidator\OneToMany;
 
 use Doctrine\ORM\EntityManagerInterface;
+use steevanb\DoctrineMappingValidator\OneToMany\Behavior\PropertiesTrait;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
 use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;

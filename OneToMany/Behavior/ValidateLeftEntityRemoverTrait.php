@@ -1,12 +1,12 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany;
+namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
 
 use Doctrine\DBAL\Exception\NotNullConstraintViolationException;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
 
-trait ValidateRemoveRightEntityTrait
+trait ValidateLeftEntityRemoverTrait
 {
     use PropertiesTrait;
 
@@ -15,7 +15,7 @@ trait ValidateRemoveRightEntityTrait
      * @throws ReportException
      * @throws \Exception
      */
-    protected function validateRemoveRightEntity()
+    protected function validateLeftEntityRemover()
     {
         if (call_user_func([ $this->rightEntity, $this->rightEntityIdGetter ]) === null) {
             throw new \Exception('$this->rightEntity->' . $this->rightEntityIdGetter . '() should not be null.');

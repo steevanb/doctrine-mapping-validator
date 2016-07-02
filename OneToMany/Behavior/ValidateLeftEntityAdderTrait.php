@@ -1,24 +1,25 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany;
+namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
 
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
 
-trait ValidateAddRightEntityTrait
+trait ValidateLeftEntityAdderTrait
 {
     use PropertiesTrait;
 
     /**
      * @return $this
      */
-    protected function validateAddRightEntity()
+    protected function validateLeftEntityAdder()
     {
         $this
-            ->addRightEntity()
-            ->flushAddRightEntity();
+            ->assertLeftEntityAdder()
+            ->assertFlushAdderRightEntity()
+            ->assertReloadAdderRightEntity();
 
         return $this;
     }
@@ -27,7 +28,7 @@ trait ValidateAddRightEntityTrait
      * @return $this
      * @throws ReportException
      */
-    protected function addRightEntity()
+    protected function assertLeftEntityAdder()
     {
         call_user_func([ $this->leftEntity, $this->leftEntityAdder ], $this->rightEntity);
         $this->assertRightEntityIsInCollection();
@@ -35,7 +36,7 @@ trait ValidateAddRightEntityTrait
         call_user_func([ $this->leftEntity, $this->leftEntityAdder ], $this->rightEntity);
         $this->assertOnlyOneRightEntityIsInCollection();
 
-        $this->addPassedAddOnlyOneRightEntityTest();
+        $this->addPassedAdderOnlyOneRightEntityTest();
 
         return $this;
     }
@@ -51,9 +52,9 @@ trait ValidateAddRightEntityTrait
             $this->throwLeftEntityAdderDoesntSetRightEntityProperty();
         }
 
-        $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ], $this->rightEntity);
+        $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ]);
         if ($collection instanceof Collection === false) {
-            $this->throwLeftEntityGetterMustReturnCollection($collection);
+            $this->throwAdderLeftEntityGetterMustReturnCollection($collection);
         }
 
         $isInCollection = false;
@@ -94,25 +95,33 @@ trait ValidateAddRightEntityTrait
      * @return $this
      * @throws ReportException
      */
-    protected function flushAddRightEntity()
+    protected function assertFlushAdderRightEntity()
     {
         try {
             $this->manager->flush();
         } catch (ORMInvalidArgumentException $e) {
-            $this->throwOrmInvalidArgumentException($e);
+            $this->throwAdderOrmInvalidArgumentException($e);
         }
 
-        if ($this->rightEntity->getId() === null) {
+        if (call_user_func([ $this->rightEntity, $this->rightEntityIdGetter ]) === null) {
             $this->throwRightEntityIdIsNullAfterLeftEntityAdderAndFlush();
         }
 
-        $this->addPasseAddFlushTest();
+        $this->addPasseAdderFlushTest();
 
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function assertReloadAdderRightEntity()
+    {
         $this->manager->refresh($this->leftEntity);
         $this->manager->refresh($this->rightEntity);
         $this->assertRightEntityIsInCollection();
 
-        $this->addPassedAddFlushReloadTest();
+        $this->addPassedAdderFlushReloadTest();
 
         return $this;
     }
@@ -151,7 +160,7 @@ trait ValidateAddRightEntityTrait
      * @param mixed $collection
      * @throws ReportException
      */
-    protected function throwLeftEntityGetterMustReturnCollection($collection) {
+    protected function throwAdderLeftEntityGetterMustReturnCollection($collection) {
         $message = $this->leftEntityClass . '::' . $this->leftEntityGetter . '() ';
         $message .= 'must return an instance of ' . Collection::class . ', ' . gettype($collection) . ' returned.';
         $errorReport = new ErrorReport($message);
@@ -202,7 +211,7 @@ trait ValidateAddRightEntityTrait
      * @param ORMInvalidArgumentException $exception
      * @throws ReportException
      */
-    protected function throwOrmInvalidArgumentException(ORMInvalidArgumentException $exception)
+    protected function throwAdderOrmInvalidArgumentException(ORMInvalidArgumentException $exception)
     {
         $message = 'ORMInvalidArgumentException occured after calling ';
         $message .= $this->leftEntityClass . '::' . $this->leftEntityAdder . '(), ';
@@ -225,7 +234,7 @@ trait ValidateAddRightEntityTrait
         $message .= 'then ' . $this->managerClass . '::flush().';
         $errorReport = new ErrorReport($message);
 
-        $errorReport->addMethodCode($this->rightEntity, 'getId');
+        $errorReport->addMethodCode($this->rightEntity, $this->rightEntityIdGetter);
         $this->addLeftEntityPersistError($errorReport);
 
         throw new ReportException($this->report, $errorReport);
@@ -254,7 +263,7 @@ trait ValidateAddRightEntityTrait
     /**
      * @return $this
      */
-    protected function addPassedAddOnlyOneRightEntityTest()
+    protected function addPassedAdderOnlyOneRightEntityTest()
     {
         $message = 'Add only one ' . $this->rightEntityClass . ', even with mutiple calls with same instance.';
         $this->passedReport->addTest($this->leftEntityAdderTestName, $message);
@@ -265,7 +274,7 @@ trait ValidateAddRightEntityTrait
     /**
      * @return $this
      */
-    protected function addPasseAddFlushTest()
+    protected function addPasseAdderFlushTest()
     {
         $message = $this->managerClass . '::flush() ';
         $message .= 'save ' . $this->leftEntityClass . ' and ' . $this->rightEntityClass . ' correctly.';
@@ -277,7 +286,7 @@ trait ValidateAddRightEntityTrait
     /**
      * @return $this
      */
-    protected function addPassedAddFlushReloadTest()
+    protected function addPassedAdderFlushReloadTest()
     {
         $message = $this->rightEntityClass . ' is correctly reloaded in ';
         $message .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ', ';

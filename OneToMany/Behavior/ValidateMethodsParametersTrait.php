@@ -1,6 +1,6 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany;
+namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
 
 use Doctrine\Common\Collections\Collection;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;

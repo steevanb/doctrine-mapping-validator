@@ -1,13 +1,13 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany;
+namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
 
-trait ValidateLeftEntityDefaultValueTrait
+trait ValidateLeftEntityPropertyDefaultValueTrait
 {
     use PropertiesTrait;
 
@@ -15,7 +15,7 @@ trait ValidateLeftEntityDefaultValueTrait
      * @return $this
      * @throws ReportException
      */
-    protected function validateLeftEntityDefaultValue()
+    protected function validateLeftEntityPropertyDefaultValue()
     {
         $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ]);
         if ($collection instanceof Collection === false) {
