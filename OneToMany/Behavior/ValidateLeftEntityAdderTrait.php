@@ -5,7 +5,6 @@ namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
-use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
 
 trait ValidateLeftEntityAdderTrait
@@ -13,22 +12,28 @@ trait ValidateLeftEntityAdderTrait
     use CreateEntityTrait;
     use ValidateMethodsTrait;
 
-    /** @var object */
-    protected $leftEntity;
-
-    /** @var object */
-    protected $rightEntity;
-
     /** @var string */
     protected $leftEntityAdderValidationName;
 
     /** @var string */
-    protected $leftEntityAdderMethod;
+    protected $leftEntityAdder;
 
     /**
-     * @return string
+     * @param object $entity
+     * @return $this
      */
-    abstract protected function getLeftEntityProperty();
+    abstract public function setLeftEntity($entity);
+
+    /**
+     * @param object $entity
+     * @return $this
+     */
+    abstract public function setRightEntity($entity);
+
+    /**
+     * @return $this
+     */
+    abstract public function getRightEntity();
 
     /**
      * @return string
@@ -36,9 +41,19 @@ trait ValidateLeftEntityAdderTrait
     abstract protected function getRightEntityPropperty();
 
     /**
-     * @return Report
+     * @return string
      */
-    abstract protected function getReport();
+    abstract public function getRightEntitySetter();
+
+    /**
+     * @return string
+     */
+    abstract public function getRightEntityGetter();
+
+    /**
+     * @return string
+     */
+    abstract public function getRightEntityIdGetter();
 
     /**
      * @return $this
@@ -61,11 +76,12 @@ trait ValidateLeftEntityAdderTrait
      */
     protected function leftEntityAdderInit()
     {
-        $this->leftEntity = $this->createLeftEntity();
-        $this->rightEntity = $this->createRightEntity();
-        $this->leftEntityAdderMethod = 'add' . ucfirst(substr($this->getLeftEntityProperty(), 0, -1));
+        $this->leftEntityAdder = 'add' . ucfirst(substr($this->getLeftEntityProperty(), 0, -1));
         $this->leftEntityAdderValidationName =
-            $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '()';
+            $this->getLeftEntityClassName() . '::' . $this->leftEntityAdder . '()';
+        $this->setLeftEntity($this->createLeftEntity($this->leftEntityAdderValidationName));
+
+        $this->setRightEntity($this->createRightEntity());
 
         return $this;
     }
@@ -84,11 +100,10 @@ trait ValidateLeftEntityAdderTrait
         $getterParameters = [];
 
         $methods = [
-            [ $this->leftEntityAdderMethod, $adderMessage, $adderParameters ],
-            [ 'get' . ucfirst($this->getLeftEntityProperty()), $getterMessage, $getterParameters ],
+            [ $this->leftEntityAdder, $adderMessage, $adderParameters ],
+            [ $this->getLeftEntityGetter(), $getterMessage, $getterParameters ],
         ];
-
-        $this->validateMethods($this->leftEntity, $methods, $this->leftEntityAdderValidationName);
+        $this->validateMethods($this->getLeftEntity(), $methods, $this->leftEntityAdderValidationName);
 
         return $this;
     }
@@ -111,11 +126,11 @@ trait ValidateLeftEntityAdderTrait
         $getterParameters = [];
 
         $methods = [
-            [ 'getId', $idGetterMessage, $idGetterParameters ],
-            [ 'set' . ucfirst($this->getRightEntityPropperty()), $setterMessage, $setterParameters ],
-            [ 'get' . ucfirst($this->getRightEntityPropperty()), $getterMessage, $getterParameters ]
+            [ $this->getRightEntityIdGetter(), $idGetterMessage, $idGetterParameters ],
+            [ $this->getRightEntitySetter(), $setterMessage, $setterParameters ],
+            [ $this->getRightEntityGetter(), $getterMessage, $getterParameters ]
         ];
-        $this->validateMethods($this->rightEntity, $methods, $this->leftEntityAdderValidationName);
+        $this->validateMethods($this->getRightEntity(), $methods, $this->leftEntityAdderValidationName);
 
         return $this;
     }
@@ -126,10 +141,10 @@ trait ValidateLeftEntityAdderTrait
      */
     protected function leftEntityAdderValidateAdder()
     {
-        call_user_func([ $this->leftEntity, $this->leftEntityAdderMethod ], $this->rightEntity);
+        call_user_func([ $this->getLeftEntity(), $this->leftEntityAdder ], $this->getRightEntity());
         $this->leftEntityAdderValidateRightEntityIsInCollection();
 
-        call_user_func([ $this->leftEntity, $this->leftEntityAdderMethod ], $this->rightEntity);
+        call_user_func([ $this->getLeftEntity(), $this->leftEntityAdder ], $this->getRightEntity());
         $this->leftEntityAdderValidateOnlyOneRightEntityIsInCollection();
 
         $this->leftEntityAdderAddOnlyOneRightEntityValidation();
@@ -143,19 +158,19 @@ trait ValidateLeftEntityAdderTrait
      */
     protected function leftEntityAdderValidateRightEntityIsInCollection()
     {
-        $mappedBy = call_user_func([ $this->rightEntity, $this->rightEntityGetter ]);
-        if ($mappedBy !== $this->leftEntity) {
+        $mappedBy = call_user_func([ $this->getRightEntity(), $this->getRightEntityGetter() ]);
+        if ($mappedBy !== $this->getLeftEntity()) {
             $this->leftEntityAdderThrowAdderDoesntSetRightEntityProperty();
         }
 
-        $collection = call_user_func([ $this->leftEntity, $this->leftEntityGetter ]);
+        $collection = call_user_func([ $this->getLeftEntity(), $this->getLeftEntityGetter() ]);
         if ($collection instanceof Collection === false) {
             $this->leftEntityAdderThrowLeftEntityGetterMustReturnCollection($collection);
         }
 
         $isInCollection = false;
         foreach ($collection as $entity) {
-            if ($entity === $this->rightEntity) {
+            if ($entity === $this->getRightEntity()) {
                 $isInCollection = true;
                 break;
             }
@@ -174,8 +189,8 @@ trait ValidateLeftEntityAdderTrait
     protected function leftEntityAdderValidateOnlyOneRightEntityIsInCollection()
     {
         $countEntities = 0;
-        foreach (call_user_func([ $this->leftEntity, $this->leftEntityGetter ], $this->rightEntity) as $entity) {
-            if ($entity === $this->rightEntity) {
+        foreach (call_user_func([ $this->getLeftEntity(), $this->getLeftEntityGetter() ], $this->getRightEntity()) as $entity) {
+            if ($entity === $this->getRightEntity()) {
                 $countEntities++;
             }
         }
@@ -199,7 +214,7 @@ trait ValidateLeftEntityAdderTrait
             $this->leftEntityAdderThrowAdderOrmInvalidArgumentException($e);
         }
 
-        if (call_user_func([ $this->rightEntity, $this->rightEntityIdGetter ]) === null) {
+        if (call_user_func([ $this->getRightEntity(), $this->getRightEntityIdGetter() ]) === null) {
             $this->leftEntityAdderThrowRightEntityIdIsNull();
         }
 
@@ -213,8 +228,8 @@ trait ValidateLeftEntityAdderTrait
      */
     protected function leftEntityAdderValidateRefresh()
     {
-        $this->getManager()->refresh($this->leftEntity);
-        $this->getManager()->refresh($this->rightEntity);
+        $this->getManager()->refresh($this->getLeftEntity());
+        $this->getManager()->refresh($this->getRightEntity());
         $this->leftEntityAdderValidateRightEntityIsInCollection();
 
         $this->leftEntityAdderAddRefreshValidation();
@@ -227,27 +242,27 @@ trait ValidateLeftEntityAdderTrait
      */
     protected function leftEntityAdderThrowAdderDoesntSetRightEntityProperty()
     {
-        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() does not set ';
+        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdder . '() does not set ';
         $message .= $this->getRightEntityClassName() . '::$' . $this->getRightEntityPropperty();
         $errorReport = new ErrorReport($message);
 
         $helpLeftentity = 'As Doctrine use Many side of relations to get informations at update / insert, ';
-        $helpLeftentity .= $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() should call ';
-        $helpLeftentity .= $this->getRightEntityClassName() . '::' . $this->rightEntitySetter . '($this). Otherwhise, ';
+        $helpLeftentity .= $this->getLeftEntityClassName() . '::' . $this->leftEntityAdder . '() should call ';
+        $helpLeftentity .= $this->getRightEntityClassName() . '::' . $this->getRightEntitySetter() . '($this). Otherwhise, ';
         $helpLeftentity .= $this->getRightEntityClassName() . ' will not be saved with relation to ' . $this->getLeftEntityClassName() . '.';
         $errorReport->addHelp($helpLeftentity);
 
-        $helpRightEntity = $this->getRightEntityClassName() . '::' . $this->rightEntitySetter . '() should set ';
+        $helpRightEntity = $this->getRightEntityClassName() . '::' . $this->getRightEntitySetter() . '() should set ';
         $helpRightEntity .= $this->getRightEntityClassName() . '::$' . $this->getRightEntityPropperty() . '.';
         $errorReport->addHelp($helpRightEntity);
 
-        $helpRightEntity = $this->getRightEntityClassName() . '::' . $this->rightEntityGetter . '() should return ';
+        $helpRightEntity = $this->getRightEntityClassName() . '::' . $this->getRightEntityGetter() . '() should return ';
         $helpRightEntity .= $this->getRightEntityClassName() . '::$' . $this->getRightEntityPropperty() . '.';
         $errorReport->addHelp($helpRightEntity);
 
-        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdderMethod);
-        $errorReport->addMethodCode($this->rightEntity, $this->rightEntitySetter);
-        $errorReport->addMethodCode($this->rightEntity, $this->rightEntityGetter);
+        $errorReport->addMethodCode($this->getLeftEntity(), $this->leftEntityAdder);
+        $errorReport->addMethodCode($this->getRightEntity(), $this->getRightEntitySetter());
+        $errorReport->addMethodCode($this->getRightEntity(), $this->getRightEntityGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -257,10 +272,10 @@ trait ValidateLeftEntityAdderTrait
      * @throws ReportException
      */
     protected function leftEntityAdderThrowLeftEntityGetterMustReturnCollection($collection) {
-        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityGetter . '() ';
+        $message = $this->getLeftEntityClassName() . '::' . $this->getLeftEntityGetter() . '() ';
         $message .= 'must return an instance of ' . Collection::class . ', ' . gettype($collection) . ' returned.';
         $errorReport = new ErrorReport($message);
-        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
+        $errorReport->addMethodCode($this->getLeftEntity(), $this->getLeftEntityGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -270,16 +285,16 @@ trait ValidateLeftEntityAdderTrait
      */
     protected function leftEntityAdderThrowAdderDoNotAddRightEntity()
     {
-        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() ';
+        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdder . '() ';
         $message .= 'does not add ' . $this->getRightEntityClassName() . '.';
         $errorReport = new ErrorReport($message);
 
-        $help = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() should add ';
+        $help = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdder . '() should add ';
         $help .= $this->getRightEntityClassName() . ' in ' . $this->getLeftEntityClassName() . '::$' . $this->getLeftEntityProperty() . '.';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdderMethod);
-        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
+        $errorReport->addMethodCode($this->getLeftEntity(), $this->leftEntityAdder);
+        $errorReport->addMethodCode($this->getLeftEntity(), $this->getLeftEntityGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -289,16 +304,16 @@ trait ValidateLeftEntityAdderTrait
      */
     protected function leftEntityAdderThrowAdderShouldNotAddSameRightEntityTwice()
     {
-        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() ';
+        $message = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdder . '() ';
         $message .= 'should not add same ' . $this->getRightEntityClassName() . ' instance twice.';
         $errorReport = new ErrorReport($message);
 
-        $help = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '() should use ';
+        $help = $this->getLeftEntityClassName() . '::' . $this->leftEntityAdder . '() should use ';
         $help .= $this->getLeftEntityClassName() . '::$' . $this->getLeftEntityProperty() . '->contains().';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityAdderMethod);
-        $errorReport->addMethodCode($this->leftEntity, $this->leftEntityGetter);
+        $errorReport->addMethodCode($this->getLeftEntity(), $this->leftEntityAdder);
+        $errorReport->addMethodCode($this->getLeftEntity(), $this->getLeftEntityGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -310,7 +325,7 @@ trait ValidateLeftEntityAdderTrait
     protected function leftEntityAdderThrowAdderOrmInvalidArgumentException(ORMInvalidArgumentException $exception)
     {
         $message = 'ORMInvalidArgumentException occured after calling ';
-        $message .= $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '(), ';
+        $message .= $this->getLeftEntityClassName() . '::' . $this->leftEntityAdder . '(), ';
         $message .= 'then ' . get_class($this->getManager()) . '::flush().';
         $errorReport = new ErrorReport($message);
 
@@ -325,12 +340,12 @@ trait ValidateLeftEntityAdderTrait
      */
     protected function leftEntityAdderThrowRightEntityIdIsNull()
     {
-        $message = $this->getRightEntityClassName() . '::$id is null after calling ';
-        $message .= $this->getLeftEntityClassName() . '::' . $this->leftEntityAdderMethod . '(), ';
+        $message = $this->getRightEntityClassName() . '::' . $this->getRightEntityIdGetter() . '() return null ';
+        $message .= 'after calling ' . $this->getLeftEntityClassName() . '::' . $this->leftEntityAdder . '(), ';
         $message .= 'then ' . get_class($this->getManager()) . '::flush().';
         $errorReport = new ErrorReport($message);
 
-        $errorReport->addMethodCode($this->rightEntity, $this->rightEntityIdGetter);
+        $errorReport->addMethodCode($this->getRightEntity(), $this->getRightEntityIdGetter());
         $this->leftEntityAdderAddLeftEntityPersistError($errorReport);
 
         throw new ReportException($this->getReport(), $errorReport);

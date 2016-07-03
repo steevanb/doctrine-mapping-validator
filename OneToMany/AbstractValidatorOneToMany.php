@@ -16,14 +16,32 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     /** @var string */
     private $leftEntityClassName;
 
+    /** @var object */
+    private $leftEntity;
+
     /** @var string */
     private $leftEntityProperty;
 
     /** @var string */
+    private $leftEntityGetter;
+
+    /** @var string */
     private $rightEntityClassName;
+
+    /** @var object */
+    private $rightEntity;
 
     /** @var string */
     private $rightEntityProperty;
+
+    /** @var string */
+    private $rightEntitySetter;
+
+    /** @var string */
+    private $rightEntityGetter;
+
+    /** @var string */
+    private $rightEntityIdGetter = 'getId';
 
     /** @var Report */
     private $report;
@@ -56,11 +74,12 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
             ->getClassMetadata($className)
             ->getAssociationMappedByTargetField($property);
 
+        $this->defineMethodNames();
+
         $this->report = new Report();
         $this->validationReport = new ValidationReport();
 
         $success = true;
-
         try {
             $this->doValidate();
         } catch (ReportException $e) {
@@ -72,12 +91,24 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
             $errorReport->addCodeLinePreview($e->getFile(), $e->getLine());
             $this->getReport()->addError($errorReport);
         }
-
         if ($success) {
             $this->getReport()->addValidation($this->getValidationReport());
         }
 
         return $this->getReport();
+    }
+
+    /**
+     * @return $this
+     */
+    protected function defineMethodNames()
+    {
+        $this->leftEntityGetter = 'get' . ucfirst($this->getLeftEntityProperty());
+
+        $this->rightEntityGetter = 'get' . ucfirst($this->getRightEntityPropperty());
+        $this->rightEntitySetter = 'set' . ucfirst($this->getRightEntityPropperty());
+
+        return $this;
     }
 
     /**
@@ -97,11 +128,38 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     }
 
     /**
+     * @param object $entity
+     * @return $this
+     */
+    protected function setLeftEntity($entity)
+    {
+        $this->leftEntity = $entity;
+
+        return $this;
+    }
+
+    /**
+     * @return object
+     */
+    protected function getLeftEntity()
+    {
+        return $this->leftEntity;
+    }
+
+    /**
      * @return string
      */
     protected function getLeftEntityProperty()
     {
         return $this->leftEntityProperty;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getLeftEntityGetter()
+    {
+        return $this->leftEntityGetter;
     }
 
     /**
@@ -113,11 +171,54 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     }
 
     /**
+     * @param object $entity
+     * @return $this
+     */
+    protected function setRightEntity($entity)
+    {
+        $this->rightEntity = $entity;
+
+        return $this;
+    }
+
+    /**
+     * @return object
+     */
+    protected function getRightEntity()
+    {
+        return $this->rightEntity;
+    }
+
+    /**
      * @return string
      */
     protected function getRightEntityPropperty()
     {
         return $this->rightEntityProperty;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getRightEntitySetter()
+    {
+        return $this->rightEntitySetter;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getRightEntityGetter()
+    {
+        return $this->rightEntityGetter;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getRightEntityIdGetter()
+    {
+        return $this->rightEntityIdGetter;
     }
 
     /**
