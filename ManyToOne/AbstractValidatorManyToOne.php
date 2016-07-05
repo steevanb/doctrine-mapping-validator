@@ -1,6 +1,6 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany;
+namespace steevanb\DoctrineMappingValidator\ManyToOne;
 
 use Doctrine\ORM\EntityManagerInterface;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
@@ -8,40 +8,40 @@ use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
 use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 
-abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
+abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
 {
     /** @var EntityManagerInterface */
     private $manager;
 
     /** @var string */
-    private $leftEntityClassName;
+    private $inverseSideClassName;
 
     /** @var object */
-    private $leftEntity;
+    private $inverseSideEntity;
 
     /** @var string */
-    private $leftEntityProperty;
+    private $inverseSideProperty;
 
     /** @var string */
-    private $leftEntityGetter;
+    private $inverseSideGetter;
 
     /** @var string */
-    private $rightEntityClassName;
+    private $owningSideClassName;
 
     /** @var object */
-    private $rightEntity;
+    private $owningSideEntity;
 
     /** @var string */
-    private $rightEntityProperty;
+    private $owningSideProperty;
 
     /** @var string */
-    private $rightEntitySetter;
+    private $owningSideSetter;
 
     /** @var string */
-    private $rightEntityGetter;
+    private $owningSideGetter;
 
     /** @var string */
-    private $rightEntityIdGetter = 'getId';
+    private $owningSideIdGetter = 'getId';
 
     /** @var Report */
     private $report;
@@ -56,31 +56,36 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
 
     /**
      * @param EntityManagerInterface $manager
-     * @param string $className
+     * @param string $owningSideClassName
      * @param string $property
      * @return Report
      */
-    public function validate(EntityManagerInterface $manager, $className, $property)
+    public function validate(EntityManagerInterface $manager, $owningSideClassName, $property)
     {
         $this->manager = $manager;
 
-        $this->leftEntityClassName = $className;
-        $this->leftEntityProperty = $property;
-
-        $this->rightEntityClassName = $manager
-            ->getClassMetadata($className)
-            ->getAssociationMappings()[$property]['targetEntity'];
-        $this->rightEntityProperty = $manager
-            ->getClassMetadata($className)
-            ->getAssociationMappedByTargetField($property);
-
-        $this->defineMethodNames();
+        $this->owningSideClassName = $owningSideClassName;
+        $this->owningSideProperty = $property;
 
         $this->report = new Report();
         $this->validationReport = new ValidationReport();
 
         $success = true;
         try {
+            $this->inverseSideClassName = $manager
+                ->getClassMetadata($owningSideClassName)
+                ->getAssociationMappings()[$property]['targetEntity'];
+            foreach ($manager->getClassMetadata($this->inverseSideClassName)->getAssociationMappings() as $mapping) {
+                if ($mapping['targetEntity'] === $owningSideClassName) {
+                    $this->inverseSideProperty = $mapping['fieldName'];
+                    break;
+                }
+            }
+            if ($this->inverseSideProperty === null) {
+                throw new \Exception('Can\'t found inverse side property on "' . $this->inverseSideClassName . '".');
+            }
+            $this->defineMethodNames();
+
             $this->doValidate();
         } catch (ReportException $e) {
             $success = false;
@@ -103,10 +108,10 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
      */
     protected function defineMethodNames()
     {
-        $this->leftEntityGetter = 'get' . ucfirst($this->getLeftEntityProperty());
+        $this->owningSideGetter = 'get' . ucfirst($this->getOwningSideProperty());
+        $this->owningSideSetter = 'set' . ucfirst($this->getOwningSideProperty());
 
-        $this->rightEntityGetter = 'get' . ucfirst($this->getRightEntityPropperty());
-        $this->rightEntitySetter = 'set' . ucfirst($this->getRightEntityPropperty());
+        $this->inverseSideGetter = 'get' . ucfirst($this->getInverseSideProperty());
 
         return $this;
     }
@@ -122,18 +127,18 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     /**
      * @return string
      */
-    protected function getLeftEntityClassName()
+    protected function getInverseSideClassName()
     {
-        return $this->leftEntityClassName;
+        return $this->inverseSideClassName;
     }
 
     /**
      * @param object $entity
      * @return $this
      */
-    protected function setLeftEntity($entity)
+    protected function setInverseSideEntity($entity)
     {
-        $this->leftEntity = $entity;
+        $this->inverseSideEntity = $entity;
 
         return $this;
     }
@@ -141,42 +146,42 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     /**
      * @return object
      */
-    protected function getLeftEntity()
+    protected function getInverseSideEntity()
     {
-        return $this->leftEntity;
+        return $this->inverseSideEntity;
     }
 
     /**
      * @return string
      */
-    protected function getLeftEntityProperty()
+    protected function getInverseSideProperty()
     {
-        return $this->leftEntityProperty;
+        return $this->inverseSideProperty;
     }
 
     /**
      * @return string
      */
-    protected function getLeftEntityGetter()
+    protected function getInverseSideGetter()
     {
-        return $this->leftEntityGetter;
+        return $this->inverseSideGetter;
     }
 
     /**
      * @return string
      */
-    protected function getRightEntityClassName()
+    protected function getOwningSideClassName()
     {
-        return $this->rightEntityClassName;
+        return $this->owningSideClassName;
     }
 
     /**
      * @param object $entity
      * @return $this
      */
-    protected function setRightEntity($entity)
+    protected function setOwningSideEntity($entity)
     {
-        $this->rightEntity = $entity;
+        $this->owningSideEntity = $entity;
 
         return $this;
     }
@@ -184,41 +189,41 @@ abstract class AbstractValidatorOneToMany implements ValidatorOneToManyInterface
     /**
      * @return object
      */
-    protected function getRightEntity()
+    protected function getOwningSideEntity()
     {
-        return $this->rightEntity;
+        return $this->owningSideEntity;
     }
 
     /**
      * @return string
      */
-    protected function getRightEntityPropperty()
+    protected function getOwningSideProperty()
     {
-        return $this->rightEntityProperty;
+        return $this->owningSideProperty;
     }
 
     /**
      * @return string
      */
-    protected function getRightEntitySetter()
+    protected function getOwningSideSetter()
     {
-        return $this->rightEntitySetter;
+        return $this->owningSideSetter;
     }
 
     /**
      * @return string
      */
-    protected function getRightEntityGetter()
+    protected function getOwningSideGetter()
     {
-        return $this->rightEntityGetter;
+        return $this->owningSideGetter;
     }
 
     /**
      * @return string
      */
-    protected function getRightEntityIdGetter()
+    protected function getOwningSideIdGetter()
     {
-        return $this->rightEntityIdGetter;
+        return $this->owningSideIdGetter;
     }
 
     /**

@@ -1,6 +1,6 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
+namespace steevanb\DoctrineMappingValidator\ManyToOne\Behavior;
 
 use Doctrine\DBAL\Exception\NotNullConstraintViolationException;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
@@ -18,7 +18,7 @@ trait ValidateLeftEntityRemoverTrait
     protected function validateLeftEntityRemover()
     {
         if (call_user_func([ $this->rightEntity, $this->rightEntityIdGetter ]) === null) {
-            throw new \Exception('$this->rightEntity->' . $this->rightEntityIdGetter . '() should not be null.');
+            throw new \Exception('$this->owningSideEntity->' . $this->rightEntityIdGetter . '() should not be null.');
         }
 
         $this
@@ -244,7 +244,7 @@ trait ValidateLeftEntityRemoverTrait
      */
     protected function throwRightEntityShouldNotBeManaged()
     {
-        $message = '$this->rightEntity should not be managed, ';
+        $message = '$this->owningSideEntity should not be managed, ';
         $message .= 'after calling ' . $this->leftEntityClass . '::' . $this->leftEntityRemover . '() ';
         $message .= 'and ' . $this->managerClass . '::flush().';
         $errorReport = new ErrorReport($message);

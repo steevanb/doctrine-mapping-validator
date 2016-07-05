@@ -1,11 +1,11 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany;
+namespace steevanb\DoctrineMappingValidator\ManyToOne;
 
 use Doctrine\ORM\EntityManagerInterface;
 use steevanb\DoctrineMappingValidator\Report\Report;
 
-class ValidatorServiceOneToMany
+class ValidatorServiceManyToOne
 {
     /** @var array */
     protected $validators = [];
@@ -14,14 +14,14 @@ class ValidatorServiceOneToMany
      * @param EntityManagerInterface $manager
      * @param string $class
      * @param string $property
-     * @param ValidatorOneToManyInterface $validator
+     * @param ValidatorManyToOneInterface $validator
      * @return $this
      */
     public function addValidator(
         EntityManagerInterface $manager,
         $class,
         $property,
-        ValidatorOneToManyInterface $validator
+        ValidatorManyToOneInterface $validator
     ) {
         $managerHash = spl_object_hash($manager);
         if (array_key_exists($managerHash, $this->validators) === false) {
@@ -39,23 +39,23 @@ class ValidatorServiceOneToMany
 
     /**
      * @param EntityManagerInterface $manager
-     * @param string $leftEntityClassName
+     * @param string $owningSideClassName
      * @param string $property
-     * @return ValidatorOneToManyInterface
+     * @return ValidatorManyToOneInterface
      * @throws \Exception
      */
-    public function getValidator(EntityManagerInterface $manager, $leftEntityClassName, $property)
+    public function getValidator(EntityManagerInterface $manager, $owningSideClassName, $property)
     {
         $managerHash = spl_object_hash($manager);
 
         if (
             array_key_exists($managerHash, $this->validators)
-            && array_key_exists($leftEntityClassName, $this->validators[$managerHash])
-            && array_key_exists($property, $this->validators[$managerHash][$leftEntityClassName])
+            && array_key_exists($owningSideClassName, $this->validators[$managerHash])
+            && array_key_exists($property, $this->validators[$managerHash][$owningSideClassName])
         ) {
-            $validator = $this->validators[$managerHash][$leftEntityClassName][$property];
+            $validator = $this->validators[$managerHash][$owningSideClassName][$property];
         } else {
-            $validator = new DefaultValidatorOneToMany();
+            $validator = new DefaultValidatorManyToOne();
         }
 
         return $validator;
@@ -63,14 +63,14 @@ class ValidatorServiceOneToMany
 
     /**
      * @param EntityManagerInterface $manager
-     * @param string $leftEntityClassName
+     * @param string $owningSideClassName
      * @param string $property
      * @return Report
      */
-    public function validate(EntityManagerInterface $manager, $leftEntityClassName, $property)
+    public function validate(EntityManagerInterface $manager, $owningSideClassName, $property)
     {
         return $this
-            ->getValidator($manager, $leftEntityClassName, $property)
-            ->validate($manager, $leftEntityClassName, $property);
+            ->getValidator($manager, $owningSideClassName, $property)
+            ->validate($manager, $owningSideClassName, $property);
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
+namespace steevanb\DoctrineMappingValidator\ManyToOne\Behavior;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;

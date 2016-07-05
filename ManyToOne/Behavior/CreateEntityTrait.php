@@ -1,6 +1,6 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
+namespace steevanb\DoctrineMappingValidator\ManyToOne\Behavior;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -20,27 +20,27 @@ trait CreateEntityTrait
     /**
      * @return string
      */
-    abstract protected function getLeftEntityClassName();
+    abstract protected function getInverseSideClassName();
 
     /**
      * @return string
      */
-    abstract protected function getLeftEntityProperty();
+    abstract protected function getInverseSideProperty();
 
     /**
      * @return object
      */
-    abstract protected function getLeftEntity();
+    abstract protected function getInverseSideEntity();
 
     /**
      * @return string
      */
-    abstract protected function getLeftEntityGetter();
+    abstract protected function getInverseSideGetter();
 
     /**
      * @return string
      */
-    abstract protected function getRightEntityClassName();
+    abstract protected function getOwningSideClassName();
 
     /**
      * @return Report
@@ -53,35 +53,35 @@ trait CreateEntityTrait
     abstract protected function getValidationReport();
 
     /**
-     * @param string $validationName
      * @return object
      */
-    protected function createLeftEntity($validationName)
+    protected function createOwningSideEntity()
     {
-        $className = $this->getLeftEntityClassName();
+        $className = $this->getOwningSideClassName();
         $entity = new $className();
         $this->defineRandomData($entity);
-
-        $getterReturn = call_user_func([ $entity, $this->getLeftEntityGetter() ]);
-        if ($getterReturn instanceof Collection === false) {
-            $this->throwLeftEntityDefaultGetterMustReturnCollection();
-        } else {
-            $this->addLeftEntityGetterDefaultValueValidation($validationName);
-        }
-
-        $this->getManager()->persist($entity);
 
         return $entity;
     }
 
     /**
+     * @param string $validationName
      * @return object
      */
-    protected function createRightEntity()
+    protected function createInverseSideEntity($validationName)
     {
-        $className = $this->getRightEntityClassName();
+        $className = $this->getInverseSideClassName();
         $entity = new $className();
         $this->defineRandomData($entity);
+
+        $getterReturn = call_user_func([ $entity, $this->getInverseSideGetter() ]);
+        if ($getterReturn instanceof Collection === false) {
+            $this->throwInverseSideDefaultGetterMustReturnCollection();
+        } else {
+            $this->addLInverseSideGetterDefaultValueValidation($validationName);
+        }
+
+        $this->getManager()->persist($entity);
 
         return $entity;
     }
@@ -130,14 +130,14 @@ trait CreateEntityTrait
      * @param string $validationName
      * @return $this
      */
-    protected function validateLeftEntityPropertyDefaultValue($validationName)
+    protected function validateInverseSidePropertyDefaultValue($validationName)
     {
-        $collection = call_user_func([ $this->getLeftEntity(), $this->getLeftEntityGetter() ]);
+        $collection = call_user_func([ $this->getInverseSideEntity(), $this->getInverseSideGetter() ]);
         if ($collection instanceof Collection === false) {
-            $this->throwLeftEntityDefaultGetterMustReturnCollection();
+            $this->throwInverseSideDefaultGetterMustReturnCollection();
         }
 
-        $this->addLeftEntityGetterDefaultValueValidation($validationName);
+        $this->addLInverseSideGetterDefaultValueValidation($validationName);
 
         return $this;
     }
@@ -145,23 +145,23 @@ trait CreateEntityTrait
     /**
      * @throws ReportException
      */
-    protected function throwLeftEntityDefaultGetterMustReturnCollection()
+    protected function throwInverseSideDefaultGetterMustReturnCollection()
     {
-        $message = $this->getLeftEntityClassName() . '::' . $this->getLeftEntityGetter() . '()';
+        $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideGetter() . '()';
         $message .= ' must return an instance of ' . Collection::class;
         $errorReport = new ErrorReport($message);
 
-        $helpCollection = 'You should call $this->$' . $this->getLeftEntityProperty();
+        $helpCollection = 'You should call $this->$' . $this->getInverseSideProperty();
         $helpCollection .= ' = new ' . ArrayCollection::class . '() in ';
-        $helpCollection .= $this->getLeftEntityClassName() . '::__construct().';
+        $helpCollection .= $this->getInverseSideClassName() . '::__construct().';
         $errorReport->addHelp($helpCollection);
 
-        $helpReturn = $this->getLeftEntityClassName() . '::' . $this->getLeftEntityGetter() . '() should return ';
-        $helpReturn .= $this->getLeftEntityClassName() . '::$' . $this->getLeftEntityProperty() . '.';
+        $helpReturn = $this->getInverseSideClassName() . '::' . $this->getInverseSideGetter() . '() should return ';
+        $helpReturn .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . '.';
         $errorReport->addHelp($helpReturn);
 
-        $errorReport->addMethodCode($this->getLeftEntity(), '__construct');
-        $errorReport->addMethodCode($this->getLeftEntity(), $this->getLeftEntityGetter());
+        $errorReport->addMethodCode($this->getInverseSideEntity(), '__construct');
+        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -170,9 +170,9 @@ trait CreateEntityTrait
      * @param string $validationName
      * @return $this
      */
-    protected function addLeftEntityGetterDefaultValueValidation($validationName)
+    protected function addLInverseSideGetterDefaultValueValidation($validationName)
     {
-        $message = $this->getLeftEntityClassName() . '::' . $this->getLeftEntityGetter() . '() ';
+        $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideGetter() . '() ';
         $message .= 'return an instance of ' . Collection::class . '.';
         $this->getValidationReport()->addValidation($validationName, $message);
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
+namespace steevanb\DoctrineMappingValidator\Behavior;
 
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
@@ -12,62 +12,6 @@ trait ValidateMethodsTrait
      * @return ValidationReport
      */
     abstract protected function getValidationReport();
-
-//    /**
-//     * @return $this
-//     */
-//    protected function validateLeftEntityMethodsExists()
-//    {
-//        $leftEntityAdder = 'You must create this method in order to add ' . $this->rightEntityClass . ' in ';
-//        $leftEntityAdder .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
-//
-//        $leftEntitySetter = 'You must create this method in order to set all ' . $this->rightEntityClass . ' to ';
-//        $leftEntitySetter .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
-//
-//        $leftEntityGetter = 'You must create this method, in order to get ';
-//        $leftEntityGetter .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
-//
-//        $leftEntityRemover = 'You must create this method in order to remove ' . $this->rightEntityClass . ' in ';
-//        $leftEntityRemover .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
-//
-//        $leftEntityClearer = 'You must create this method in order to clear all ' . $this->rightEntityClass . ' in ';
-//        $leftEntityClearer .= $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' collection.';
-//
-//        $methods = [
-//            [ 'method' => $this->leftEntityAdder, 'message' => $leftEntityAdder ],
-//            [ 'method' => $this->leftEntitySetter, 'message' => $leftEntitySetter ],
-//            [ 'method' => $this->leftEntityGetter, 'message' => $leftEntityGetter ],
-//            [ 'method' => $this->leftEntityRemover, 'message' => $leftEntityRemover ],
-//            [ 'method' => $this->leftEntityClearer, 'message' => $leftEntityClearer ],
-//        ];
-//        $this->assertEntityMethodsExists($this->leftEntity, $methods);
-//
-//        return $this;
-//    }
-//
-//    /**
-//     * @return $this
-//     */
-//    protected function validateRightEntityMethodsExists()
-//    {
-//        $rightEntityIdGetter = 'You must create this method in order to get ';
-//        $rightEntityIdGetter .= $this->rightEntityClass . '::$id';
-//
-//        $rightEntitySetter = 'You must create this method in order to set ' . $this->leftEntityClass . ' to ';
-//        $rightEntitySetter .= $this->rightEntityClass . '::$' . $this->rightEntityProperty . '.';
-//
-//        $rightEntityGetter = 'You must create this method in order to get ';
-//        $rightEntityGetter .= $this->rightEntityClass . '::$' . $this->rightEntityProperty . '.';
-//
-//        $methods = [
-//            [ 'method' => $this->rightEntityIdGetter, 'message' => $rightEntityIdGetter ],
-//            [ 'method' => $this->rightEntitySetter, 'message' => $rightEntitySetter ],
-//            [ 'method' => $this->rightEntityGetter, 'message' => $rightEntityGetter ]
-//        ];
-//        $this->assertEntityMethodsExists($this->rightEntity, $methods);
-//
-//        return $this;
-//    }
 
     /**
      * @param object $entity

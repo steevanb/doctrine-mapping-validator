@@ -1,6 +1,6 @@
 <?php
 
-namespace steevanb\DoctrineMappingValidator\OneToMany\Behavior;
+namespace steevanb\DoctrineMappingValidator\ManyToOne\Behavior;
 
 use Doctrine\ORM\EntityManagerInterface;
 use steevanb\DoctrineMappingValidator\Report\ValidationReport;
@@ -51,7 +51,7 @@ trait InitTrait
         $this->rightEntityIdGetter = 'getId';
 
         $message = $this->leftEntityClass . '::$' . $this->leftEntityProperty . ' : ';
-        $message .= 'oneToMany with ' . $this->rightEntityClass;
+        $message .= 'manyToOne with ' . $this->rightEntityClass;
         $this->validationReport = new ValidationReport($message);
     }
 }
