@@ -3,6 +3,7 @@
 namespace steevanb\DoctrineMappingValidator\ManyToOne;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadataInfo;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
 use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
@@ -72,9 +73,14 @@ abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
 
         $success = true;
         try {
-            $this->inverseSideClassName = $manager
+            $associationMapping = $manager
                 ->getClassMetadata($owningSideClassName)
-                ->getAssociationMappings()[$property]['targetEntity'];
+                ->getAssociationMappings()[$property];
+            if ($associationMapping['type'] !== ClassMetadataInfo::MANY_TO_ONE) {
+                throw new ReportException($owningSideClassName . '::' . $property . ' is not a manyToOne.');
+            }
+
+            $this->inverseSideClassName = $associationMapping['targetEntity'];
             foreach ($manager->getClassMetadata($this->inverseSideClassName)->getAssociationMappings() as $mapping) {
                 if ($mapping['targetEntity'] === $owningSideClassName) {
                     $this->inverseSideProperty = $mapping['fieldName'];
