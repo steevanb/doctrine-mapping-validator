@@ -24,7 +24,16 @@ abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
     private $inverseSideProperty;
 
     /** @var string */
+    private $inverseSideSetter;
+
+    /** @var string */
     private $inverseSideGetter;
+
+    /** @var string */
+    private $inverseSideAdder;
+
+    /** @var string */
+    private $inverseSideClearer;
 
     /** @var string */
     private $owningSideClassName;
@@ -42,13 +51,16 @@ abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
     private $owningSideGetter;
 
     /** @var string */
-    private $owningSideIdGetter = 'getId';
+    private $owningSideIdGetter;
 
     /** @var Report */
     private $report;
 
     /** @var ValidationReport */
     private $validationReport;
+
+    /** @var bool */
+    private $isBidirectionnal = true;
 
     /**
      * @return $this
@@ -73,26 +85,11 @@ abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
 
         $success = true;
         try {
-            $associationMapping = $manager
-                ->getClassMetadata($owningSideClassName)
-                ->getAssociationMappings()[$property];
-            if ($associationMapping['type'] !== ClassMetadataInfo::MANY_TO_ONE) {
-                throw new ReportException($owningSideClassName . '::' . $property . ' is not a manyToOne.');
-            }
-
-            $this->inverseSideClassName = $associationMapping['targetEntity'];
-            foreach ($manager->getClassMetadata($this->inverseSideClassName)->getAssociationMappings() as $mapping) {
-                if ($mapping['targetEntity'] === $owningSideClassName) {
-                    $this->inverseSideProperty = $mapping['fieldName'];
-                    break;
-                }
-            }
-            if ($this->inverseSideProperty === null) {
-                throw new \Exception('Can\'t found inverse side property on "' . $this->inverseSideClassName . '".');
-            }
-            $this->defineMethodNames();
-
-            $this->doValidate();
+            $this
+                ->assertIsManyToOne($manager, $owningSideClassName, $property)
+                ->defineInverseSideFields($manager, $owningSideClassName, $property)
+                ->defineMethodNames()
+                ->doValidate();
         } catch (ReportException $e) {
             $success = false;
         } catch (\Exception $e) {
@@ -110,14 +107,63 @@ abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
     }
 
     /**
+     * @param EntityManagerInterface $manager
+     * @param string $owningSideClassName
+     * @param string $property
+     * @return $this
+     * @throws \Exception
+     */
+    protected function assertIsManyToOne(EntityManagerInterface $manager, $owningSideClassName, $property)
+    {
+        $associationMappings = $manager->getClassMetadata($owningSideClassName)->getAssociationMappings();
+        if (
+            array_key_exists($property, $associationMappings) === false
+            || $associationMappings[$property]['type'] !== ClassMetadataInfo::MANY_TO_ONE
+        ) {
+            throw new \Exception($owningSideClassName . '::$' . $property . ' is not a manyToOne.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param EntityManagerInterface $manager
+     * @param string $owningSideClassName
+     * @param string $property
+     * @return $this
+     * @throws \Exception
+     */
+    protected function defineInverseSideFields(EntityManagerInterface $manager, $owningSideClassName, $property)
+    {
+        $associationMappings = $manager->getClassMetadata($owningSideClassName)->getAssociationMappings();
+        $this->inverseSideClassName = $associationMappings[$property]['targetEntity'];
+
+        foreach ($manager->getClassMetadata($this->inverseSideClassName)->getAssociationMappings() as $mapping) {
+            if ($mapping['targetEntity'] === $owningSideClassName) {
+                $this->inverseSideProperty = $mapping['fieldName'];
+                break;
+            }
+        }
+        if ($this->inverseSideProperty === null) {
+            $this->isBidirectionnal = false;
+        }
+
+        return $this;
+    }
+
+    /**
      * @return $this
      */
     protected function defineMethodNames()
     {
         $this->owningSideGetter = 'get' . ucfirst($this->getOwningSideProperty());
         $this->owningSideSetter = 'set' . ucfirst($this->getOwningSideProperty());
+        $this->owningSideIdGetter = 'getId';
 
+        $this->inverseSideSetter = 'set' . ucfirst($this->getInverseSideProperty());
         $this->inverseSideGetter = 'get' . ucfirst($this->getInverseSideProperty());
+        $this->inverseSideAdder = 'add' . ucfirst(substr($this->getInverseSideProperty(), 0, -1));
+        $this->inverseSideClearer = 'clear' . ucfirst($this->getInverseSideProperty());
 
         return $this;
     }
@@ -168,9 +214,30 @@ abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
     /**
      * @return string
      */
+    protected function getInverseSideSetter()
+    {
+        return $this->inverseSideSetter;
+    }
+
+    /**
+     * @return string
+     */
     protected function getInverseSideGetter()
     {
         return $this->inverseSideGetter;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getInverseSideAdder()
+    {
+        return $this->inverseSideAdder;
+    }
+
+    protected function getInverseSideClearer()
+    {
+        return $this->inverseSideClearer;
     }
 
     /**
@@ -246,5 +313,13 @@ abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
     protected function getValidationReport()
     {
         return $this->validationReport;
+    }
+
+    /**
+     * @return bool
+     */
+    protected function isBidirectionnal()
+    {
+        return $this->isBidirectionnal;
     }
 }

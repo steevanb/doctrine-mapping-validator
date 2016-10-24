@@ -45,13 +45,14 @@ trait AddCodeTrait
 
         $reflection = new \ReflectionClass($object);
         $reflectionMethod = $reflection->getMethod($method);
-        $classLines = file($reflection->getFileName());
+        $classLines = file($reflectionMethod->getFileName());
 
         $startLine = $reflectionMethod->getStartLine();
         $coutLines = $reflectionMethod->getEndLine() - $startLine;
-        // if method is in trait, getStartLine() return line of "last" used trait (not the right one)
+
+        // $startLine is the line of {
+        // try to find function foo() line
         $findMethodDeclaration = 2;
-        $methodDeclarationFound = false;
         while ($findMethodDeclaration > 0) {
             $line = array_slice($classLines, $startLine, 1)[0];
             if (strpos($line, $method) === false) {
@@ -59,18 +60,16 @@ trait AddCodeTrait
                 $coutLines++;
                 $findMethodDeclaration--;
             } else {
-                $methodDeclarationFound = true;
                 break;
             }
         }
-        if ($methodDeclarationFound) {
-            $this->addCode(
-                $reflection->getFileName(),
-                $startLine,
-                $startLine + 1,
-                array_slice($classLines, $startLine, $coutLines)
-            );
-        }
+
+        $this->addCode(
+            $reflection->getFileName(),
+            $startLine,
+            $startLine + 1,
+            array_slice($classLines, $startLine, $coutLines)
+        );
 
         return $this;
     }

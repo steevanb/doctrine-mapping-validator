@@ -2,12 +2,8 @@
 
 namespace steevanb\DoctrineMappingValidator\ManyToOne\Behavior;
 
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
-use steevanb\DoctrineMappingValidator\Report\ErrorReport;
 use steevanb\DoctrineMappingValidator\Report\Report;
-use steevanb\DoctrineMappingValidator\Report\ReportException;
 use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 
 trait CreateEntityTrait
@@ -43,6 +39,11 @@ trait CreateEntityTrait
     abstract protected function getOwningSideClassName();
 
     /**
+     * @return bool
+     */
+    abstract protected function isBidirectionnal();
+
+    /**
      * @return Report
      */
     abstract protected function getReport();
@@ -65,23 +66,13 @@ trait CreateEntityTrait
     }
 
     /**
-     * @param string $validationName
      * @return object
      */
-    protected function createInverseSideEntity($validationName)
+    protected function createInverseSideEntity()
     {
         $className = $this->getInverseSideClassName();
         $entity = new $className();
         $this->defineRandomData($entity);
-
-        $getterReturn = call_user_func([ $entity, $this->getInverseSideGetter() ]);
-        if ($getterReturn instanceof Collection === false) {
-            $this->throwInverseSideDefaultGetterMustReturnCollection();
-        } else {
-            $this->addLInverseSideGetterDefaultValueValidation($validationName);
-        }
-
-        $this->getManager()->persist($entity);
 
         return $entity;
     }
@@ -102,24 +93,7 @@ trait CreateEntityTrait
                     || $fieldMapping['nullable'] === false
                 )
             ) {
-                $fieldValue = null;
-                switch ($fieldMapping['type']) {
-                    case 'string' :
-                        $fieldValue = uniqid();
-                        break;
-                    case 'smallint':
-                    case 'integer':
-                    case 'bigint':
-                        $fieldValue = rand(1, 1998);
-                        break;
-                    case 'date':
-                    case 'datetime':
-                        $fieldValue = new \DateTime();
-                        break;
-                }
-                if ($fieldValue !== null) {
-                    $entity->{'set' . $fieldMapping['columnName']}($fieldValue);
-                }
+                $entity->{$this->getFieldSetter($fieldMapping)}($this->getFieldValue($fieldMapping));
             }
         }
 
@@ -127,55 +101,40 @@ trait CreateEntityTrait
     }
 
     /**
-     * @param string $validationName
-     * @return $this
+     * @param array $fieldMapping
+     * @return mixed
      */
-    protected function validateInverseSidePropertyDefaultValue($validationName)
+    protected function getFieldValue(array $fieldMapping)
     {
-        $collection = call_user_func([ $this->getInverseSideEntity(), $this->getInverseSideGetter() ]);
-        if ($collection instanceof Collection === false) {
-            $this->throwInverseSideDefaultGetterMustReturnCollection();
+        switch ($fieldMapping['type']) {
+            case 'string' :
+                $return = uniqid();
+                break;
+            case 'smallint':
+            case 'integer':
+            case 'bigint':
+                $return = rand(1, 1998);
+                break;
+            case 'date':
+            case 'datetime':
+                $return = new \DateTime();
+                break;
+            case 'boolean':
+                $return = true;
+                break;
+            default:
+                $return = null;
         }
 
-        $this->addLInverseSideGetterDefaultValueValidation($validationName);
-
-        return $this;
+        return $return;
     }
 
     /**
-     * @throws ReportException
+     * @param array $fieldMapping
+     * @return string
      */
-    protected function throwInverseSideDefaultGetterMustReturnCollection()
+    protected function getFieldSetter(array $fieldMapping)
     {
-        $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideGetter() . '()';
-        $message .= ' must return an instance of ' . Collection::class;
-        $errorReport = new ErrorReport($message);
-
-        $helpCollection = 'You should call $this->$' . $this->getInverseSideProperty();
-        $helpCollection .= ' = new ' . ArrayCollection::class . '() in ';
-        $helpCollection .= $this->getInverseSideClassName() . '::__construct().';
-        $errorReport->addHelp($helpCollection);
-
-        $helpReturn = $this->getInverseSideClassName() . '::' . $this->getInverseSideGetter() . '() should return ';
-        $helpReturn .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . '.';
-        $errorReport->addHelp($helpReturn);
-
-        $errorReport->addMethodCode($this->getInverseSideEntity(), '__construct');
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
-
-        throw new ReportException($this->getReport(), $errorReport);
-    }
-
-    /**
-     * @param string $validationName
-     * @return $this
-     */
-    protected function addLInverseSideGetterDefaultValueValidation($validationName)
-    {
-        $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideGetter() . '() ';
-        $message .= 'return an instance of ' . Collection::class . '.';
-        $this->getValidationReport()->addValidation($validationName, $message);
-
-        return $this;
+        return 'set' . str_replace('_', null, $fieldMapping['columnName']);
     }
 }

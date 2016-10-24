@@ -3,6 +3,7 @@
 namespace steevanb\DoctrineMappingValidator\ManyToOne\Behavior;
 
 use Doctrine\Common\Collections\Collection;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\ORMInvalidArgumentException;
 use steevanb\DoctrineMappingValidator\Behavior\ValidateMethodsTrait;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
@@ -10,7 +11,6 @@ use steevanb\DoctrineMappingValidator\Report\ReportException;
 
 trait ValidateInverseSideAdderTrait
 {
-    use CreateEntityTrait;
     use ValidateMethodsTrait;
 
     /** @var string */
@@ -31,30 +31,44 @@ trait ValidateInverseSideAdderTrait
      */
     abstract protected function setOwningSideEntity($entity);
 
-    /**
-     * @return $this
-     */
+    /** @return object */
     abstract protected function getOwningSideEntity();
 
-    /**
-     * @return string
-     */
+    /** @return string */
     abstract protected function getOwningSideProperty();
 
-    /**
-     * @return string
-     */
+    /** @return string */
     abstract protected function getOwningSideSetter();
 
-    /**
-     * @return string
-     */
+    /** @return string */
     abstract protected function getOwningSideGetter();
 
-    /**
-     * @return string
-     */
+    /** @return string */
     abstract protected function getOwningSideIdGetter();
+
+    /** @return string */
+    abstract protected function getInverseSideProperty();
+
+    /** @return string */
+    abstract protected function getInverseSideClassName();
+
+    /** @return object */
+    abstract protected function createInverseSideEntity();
+
+    /** @return object */
+    abstract protected function createOwningSideEntity();
+
+    /** @return string */
+    abstract protected function getOwningSideClassName();
+
+    /** @return string */
+    abstract protected function getInverseSideGetter();
+
+    /** @return object */
+    abstract protected function getInverseSideEntity();
+
+    /** @return EntityManagerInterface */
+    abstract protected function getManager();
 
     /**
      * @return $this
@@ -80,9 +94,10 @@ trait ValidateInverseSideAdderTrait
         $this->inverseSideAdder = 'add' . ucfirst(substr($this->getInverseSideProperty(), 0, -1));
         $this->inverseSideAdderValidationName =
             $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '()';
-        $this->setInverseSideEntity($this->createInverseSideEntity($this->inverseSideAdderValidationName));
+        $this->setInverseSideEntity($this->createInverseSideEntity());
 
         $this->setOwningSideEntity($this->createOwningSideEntity());
+        $this->getManager()->persist($this->getOwningSideEntity());
 
         return $this;
     }
@@ -190,7 +205,14 @@ trait ValidateInverseSideAdderTrait
     protected function inverseSideAdderValidateOnlyOneOwningSideEntityIsInCollection()
     {
         $countEntities = 0;
-        foreach (call_user_func([ $this->getInverseSideEntity(), $this->getInverseSideGetter() ], $this->getOwningSideEntity()) as $entity) {
+        $entities = call_user_func(
+            [
+                $this->getInverseSideEntity(),
+                $this->getInverseSideGetter()
+            ],
+            $this->getOwningSideEntity()
+        );
+        foreach ($entities as $entity) {
             if ($entity === $this->getOwningSideEntity()) {
                 $countEntities++;
             }
@@ -331,7 +353,7 @@ trait ValidateInverseSideAdderTrait
         $errorReport = new ErrorReport($message);
 
         $errorReport->addError($exception->getMessage());
-        $this->inverseSideAdderAddinverseSideEntityPersistError($errorReport);
+        $this->inverseSideAdderAddInverseSideEntityPersistError($errorReport);
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -347,7 +369,7 @@ trait ValidateInverseSideAdderTrait
         $errorReport = new ErrorReport($message);
 
         $errorReport->addMethodCode($this->getOwningSideEntity(), $this->getOwningSideIdGetter());
-        $this->inverseSideAdderAddinverseSideEntityPersistError($errorReport);
+        $this->inverseSideAdderAddInverseSideEntityPersistError($errorReport);
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -356,7 +378,7 @@ trait ValidateInverseSideAdderTrait
      * @param ErrorReport $errorReport
      * @return $this
      */
-    protected function inverseSideAdderAddinverseSideEntityPersistError(ErrorReport $errorReport)
+    protected function inverseSideAdderAddInverseSideEntityPersistError(ErrorReport $errorReport)
     {
         $propertyMetadata = $this
             ->getManager()

@@ -3,11 +3,17 @@
 namespace steevanb\DoctrineMappingValidator\Behavior;
 
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
+use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
 use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 
 trait ValidateMethodsTrait
 {
+    /**
+     * @return Report
+     */
+    abstract protected function getReport();
+
     /**
      * @return ValidationReport
      */
@@ -50,9 +56,9 @@ trait ValidateMethodsTrait
         $reflection = new \ReflectionClass($className);
         $countParameters = 0;
         $countRequiredParameters = 0;
-        foreach ($parameters as $parameter) {
+        foreach ($parameters as $allowedTypes) {
             $countParameters++;
-            if (count($parameter) !== 2) {
+            if (count($allowedTypes) !== 2) {
                 $countRequiredParameters++;
             }
         }
@@ -62,11 +68,15 @@ trait ValidateMethodsTrait
         } else {
             $methodParameters = $reflection->getMethod($method)->getParameters();
             $parameterIndex = 0;
-            foreach ($parameters as $types) {
-                $type = (string)$methodParameters[$parameterIndex]->getType();
-                if (in_array($type, $types) === false) {
-                    $reportError = true;
-                    break;
+            $isPhp7 = version_compare(phpversion(), '7.0.0') >= 0;
+            foreach ($parameters as $allowedTypes) {
+                // we can test parameter type since PHP7, before, we can just test default value
+                if ($isPhp7) {
+                    $type = (string) $methodParameters[$parameterIndex]->getType();
+                    if (in_array($type, $allowedTypes) === false) {
+                        $reportError = true;
+                        break;
+                    }
                 }
 
                 $parameterIndex++;

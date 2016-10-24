@@ -27,8 +27,9 @@ class HtmlExport implements ExportInterface
     public function export(Report $report)
     {
         ob_start();
-        $template = ($this->template === null) ?__DIR__ . DIRECTORY_SEPARATOR . 'HtmlTemplateExport.php' : $this->template;
-        require $template;
+        require ($this->template === null)
+            ? __DIR__ . DIRECTORY_SEPARATOR . 'HtmlTemplateExport.php'
+            : $this->template;
 
         return ob_get_clean();
     }
