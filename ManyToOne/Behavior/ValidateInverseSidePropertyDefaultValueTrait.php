@@ -80,7 +80,6 @@ trait ValidateInverseSidePropertyDefaultValueTrait
     }
 
     /**
-     * @param string $validationName
      * @return $this
      */
     protected function addInverseSideGetterDefaultValueValidation()

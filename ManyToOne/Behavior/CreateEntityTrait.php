@@ -8,49 +8,31 @@ use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 
 trait CreateEntityTrait
 {
-    /**
-     * @return EntityManagerInterface
-     */
+    /** @return EntityManagerInterface */
     abstract protected function getManager();
 
-    /**
-     * @return string
-     */
+    /** @return string */
     abstract protected function getInverseSideClassName();
 
-    /**
-     * @return string
-     */
+    /** @return string */
     abstract protected function getInverseSideProperty();
 
-    /**
-     * @return object
-     */
+    /** @return object */
     abstract protected function getInverseSideEntity();
 
-    /**
-     * @return string
-     */
+    /** @return string */
     abstract protected function getInverseSideGetter();
 
-    /**
-     * @return string
-     */
+    /** @return string */
     abstract protected function getOwningSideClassName();
 
-    /**
-     * @return bool
-     */
+    /** @return bool */
     abstract protected function isBidirectionnal();
 
-    /**
-     * @return Report
-     */
+    /** @return Report */
     abstract protected function getReport();
 
-    /**
-     * @return ValidationReport
-     */
+    /** @return ValidationReport */
     abstract protected function getValidationReport();
 
     /**

@@ -85,6 +85,12 @@ trait ValidateInverseSideSetterTrait
     /** @return ValidationReport */
     abstract protected function getValidationReport();
 
+    /** @return array */
+    abstract protected function getInverseSideAdderMethodValidation();
+
+    /** @return array */
+    abstract protected function getInverseSideGetterMethodValidation();
+
     /**
      * @return $this
      * @throws ReportException
@@ -93,6 +99,8 @@ trait ValidateInverseSideSetterTrait
     {
         $this
             ->inverseSideSetterInit()
+            ->inverseSideSetterValidateOwningSideMethods()
+            ->inverseSideSetterValidateInverseSideMethods()
             ->inverseSideSetterValidate()
             ->inverseSideSetterValidateOwningSideEntities()
             ->inverseSideSetterValidateReloadEntities();
@@ -113,6 +121,50 @@ trait ValidateInverseSideSetterTrait
 
         $this->owningSideEntity2 = $this->createOwningSideEntity();
         $this->getManager()->persist($this->owningSideEntity2);
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function inverseSideSetterValidateInverseSideMethods()
+    {
+        $this->validateMethods(
+            $this->getInverseSideEntity(),
+            [
+                $this->getInverseSideAdderMethodValidation(),
+                $this->getInverseSideGetterMethodValidation()
+            ],
+            $this->inverseSideAdderValidationName
+        );
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function inverseSideSetterValidateOwningSideMethods()
+    {
+        $idGetterMessage = 'You must create this method in order to get ';
+        $idGetterMessage .= $this->getOwningSideClassName() . '::$id';
+        $idGetterParameters = [];
+
+        $setterMessage = 'You must create this method in order to set ' . $this->getInverseSideClassName() . ' to ';
+        $setterMessage .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty() . '.';
+        $setterParameters = [ $this->getOwningSideProperty() => [ $this->getInverseSideClassName(), 'null' ] ];
+
+        $getterMessage = 'You must create this method in order to get ';
+        $getterMessage .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty() . '.';
+        $getterParameters = [];
+
+        $methods = [
+            [ $this->getOwningSideIdGetter(), $idGetterMessage, $idGetterParameters ],
+            [ $this->getOwningSideSetter(), $setterMessage, $setterParameters ],
+            [ $this->getOwningSideGetter(), $getterMessage, $getterParameters ]
+        ];
+        $this->validateMethods($this->getOwningSideEntity(), $methods, $this->inverseSideAdderValidationName);
 
         return $this;
     }

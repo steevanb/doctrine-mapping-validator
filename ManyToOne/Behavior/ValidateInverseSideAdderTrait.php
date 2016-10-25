@@ -5,25 +5,24 @@ namespace steevanb\DoctrineMappingValidator\ManyToOne\Behavior;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\ORMInvalidArgumentException;
-use steevanb\DoctrineMappingValidator\Behavior\ValidateMethodsTrait;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
+use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
+use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 
 trait ValidateInverseSideAdderTrait
 {
-    use ValidateMethodsTrait;
-
     /** @var string */
     protected $inverseSideAdderValidationName;
 
-    /** @var string */
-    protected $inverseSideAdder;
+    /** @return array */
+    abstract protected function getOwningSideGetterMethodValidation();
 
-    /**
-     * @param object $entity
-     * @return $this
-     */
-    abstract protected function setInverseSideEntity($entity);
+    /** @return string */
+    abstract protected function getOwningSideClassName();
+
+    /** @return object */
+    abstract protected function createOwningSideEntity();
 
     /**
      * @param object $entity
@@ -40,11 +39,26 @@ trait ValidateInverseSideAdderTrait
     /** @return string */
     abstract protected function getOwningSideSetter();
 
+    /** @return array */
+    abstract protected function getOwningSideSetterMethodValidation();
+
     /** @return string */
     abstract protected function getOwningSideGetter();
 
     /** @return string */
     abstract protected function getOwningSideIdGetter();
+
+    /** @return array */
+    abstract protected function getOwningSideIdGetterMethodValidation();
+
+    /** @return object */
+    abstract protected function createInverseSideEntity();
+
+    /**
+     * @param object $entity
+     * @return $this
+     */
+    abstract protected function setInverseSideEntity($entity);
 
     /** @return string */
     abstract protected function getInverseSideProperty();
@@ -52,23 +66,40 @@ trait ValidateInverseSideAdderTrait
     /** @return string */
     abstract protected function getInverseSideClassName();
 
-    /** @return object */
-    abstract protected function createInverseSideEntity();
-
-    /** @return object */
-    abstract protected function createOwningSideEntity();
-
     /** @return string */
-    abstract protected function getOwningSideClassName();
+    abstract protected function getInverseSideAdder();
+
+    /** @return array */
+    abstract protected function getInverseSideAdderMethodValidation();
 
     /** @return string */
     abstract protected function getInverseSideGetter();
+
+    /** @return array */
+    abstract protected function getInverseSideGetterMethodValidation();
 
     /** @return object */
     abstract protected function getInverseSideEntity();
 
     /** @return EntityManagerInterface */
     abstract protected function getManager();
+
+    /** @return bool */
+    abstract protected function isBidirectionnal();
+
+    /** @return Report */
+    abstract protected function getReport();
+
+    /** @return ValidationReport */
+    abstract protected function getValidationReport();
+
+    /**
+     * @param object $entity
+     * @param array $methods
+     * @param string $validationName
+     * @return $this
+     */
+    abstract protected function validateMethods($entity, array $methods, $validationName);
 
     /**
      * @return $this
@@ -91,9 +122,8 @@ trait ValidateInverseSideAdderTrait
      */
     protected function inverseSideAdderInit()
     {
-        $this->inverseSideAdder = 'add' . ucfirst(substr($this->getInverseSideProperty(), 0, -1));
         $this->inverseSideAdderValidationName =
-            $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '()';
+            $this->getInverseSideClassName() . '::' . $this->getInverseSideAdder() . '()';
         $this->setInverseSideEntity($this->createInverseSideEntity());
 
         $this->setOwningSideEntity($this->createOwningSideEntity());
@@ -105,21 +135,17 @@ trait ValidateInverseSideAdderTrait
     /**
      * @return $this
      */
-    protected function inverseSideAdderValidateInverseSideMethods()
+    protected function inverseSideAdderValidateOwningSideMethods()
     {
-        $adderMessage = 'You must create this method in order to add ' . $this->getOwningSideClassName() . ' in ';
-        $adderMessage .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . ' collection.';
-        $adderParameters = [ substr($this->getInverseSideProperty(), 0, -1) => [ $this->getOwningSideClassName() ] ];
-
-        $getterMessage = 'You must create this method, in order to get ';
-        $getterMessage .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . ' collection.';
-        $getterParameters = [];
-
-        $methods = [
-            [ $this->inverseSideAdder, $adderMessage, $adderParameters ],
-            [ $this->getInverseSideGetter(), $getterMessage, $getterParameters ],
-        ];
-        $this->validateMethods($this->getInverseSideEntity(), $methods, $this->inverseSideAdderValidationName);
+        $this->validateMethods(
+            $this->getOwningSideEntity(),
+            [
+                $this->getOwningSideIdGetterMethodValidation(),
+                $this->getOwningSideSetterMethodValidation(),
+                $this->getOwningSideGetterMethodValidation()
+            ],
+            $this->inverseSideAdderValidationName
+        );
 
         return $this;
     }
@@ -127,26 +153,18 @@ trait ValidateInverseSideAdderTrait
     /**
      * @return $this
      */
-    protected function inverseSideAdderValidateOwningSideMethods()
+    protected function inverseSideAdderValidateInverseSideMethods()
     {
-        $idGetterMessage = 'You must create this method in order to get ';
-        $idGetterMessage .= $this->getOwningSideClassName() . '::$id';
-        $idGetterParameters = [];
-
-        $setterMessage = 'You must create this method in order to set ' . $this->getInverseSideClassName() . ' to ';
-        $setterMessage .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty() . '.';
-        $setterParameters = [ $this->getOwningSideProperty() => [ $this->getInverseSideClassName(), 'null' ] ];
-
-        $getterMessage = 'You must create this method in order to get ';
-        $getterMessage .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty() . '.';
-        $getterParameters = [];
-
-        $methods = [
-            [ $this->getOwningSideIdGetter(), $idGetterMessage, $idGetterParameters ],
-            [ $this->getOwningSideSetter(), $setterMessage, $setterParameters ],
-            [ $this->getOwningSideGetter(), $getterMessage, $getterParameters ]
-        ];
-        $this->validateMethods($this->getOwningSideEntity(), $methods, $this->inverseSideAdderValidationName);
+        if ($this->isBidirectionnal()) {
+            $this->validateMethods(
+                $this->getInverseSideEntity(),
+                [
+                    $this->getInverseSideAdderMethodValidation(),
+                    $this->getInverseSideGetterMethodValidation()
+                ],
+                $this->inverseSideAdderValidationName
+            );
+        }
 
         return $this;
     }
@@ -157,10 +175,10 @@ trait ValidateInverseSideAdderTrait
      */
     protected function inverseSideAdderValidateAdder()
     {
-        call_user_func([ $this->getInverseSideEntity(), $this->inverseSideAdder ], $this->getOwningSideEntity());
+        call_user_func([$this->getInverseSideEntity(), $this->getInverseSideAdder()], $this->getOwningSideEntity());
         $this->inverseSideAdderValidateOwningSideEntityIsInCollection();
 
-        call_user_func([ $this->getInverseSideEntity(), $this->inverseSideAdder ], $this->getOwningSideEntity());
+        call_user_func([$this->getInverseSideEntity(), $this->getInverseSideAdder()], $this->getOwningSideEntity());
         $this->inverseSideAdderValidateOnlyOneOwningSideEntityIsInCollection();
 
         $this->inverseSideAdderAddOnlyOneOwningSideEntityValidation();
@@ -174,12 +192,12 @@ trait ValidateInverseSideAdderTrait
      */
     protected function inverseSideAdderValidateOwningSideEntityIsInCollection()
     {
-        $mappedBy = call_user_func([ $this->getOwningSideEntity(), $this->getOwningSideGetter() ]);
+        $mappedBy = call_user_func([$this->getOwningSideEntity(), $this->getOwningSideGetter()]);
         if ($mappedBy !== $this->getInverseSideEntity()) {
             $this->inverseSideAdderThrowAdderDoesntSetOwningSideEntityProperty();
         }
 
-        $collection = call_user_func([ $this->getInverseSideEntity(), $this->getInverseSideGetter() ]);
+        $collection = call_user_func([$this->getInverseSideEntity(), $this->getInverseSideGetter()]);
         if ($collection instanceof Collection === false) {
             $this->inverseSideAdderThrowInverseSideGetterMustReturnCollection($collection);
         }
@@ -237,7 +255,7 @@ trait ValidateInverseSideAdderTrait
             $this->inverseSideAdderThrowAdderOrmInvalidArgumentException($e);
         }
 
-        if (call_user_func([ $this->getOwningSideEntity(), $this->getOwningSideIdGetter() ]) === null) {
+        if (call_user_func([$this->getOwningSideEntity(), $this->getOwningSideIdGetter()]) === null) {
             $this->inverseSideAdderThrowOwningSideEntityIdIsNull();
         }
 
@@ -265,25 +283,29 @@ trait ValidateInverseSideAdderTrait
      */
     protected function inverseSideAdderThrowAdderDoesntSetOwningSideEntityProperty()
     {
-        $message = $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '() does not set ';
+        $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideAdder() . '() does not set ';
         $message .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty();
         $errorReport = new ErrorReport($message);
 
         $helpInverseSide = 'As Doctrine use Many side of relations to get informations at update / insert, ';
-        $helpInverseSide .= $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '() should call ';
-        $helpInverseSide .= $this->getOwningSideClassName() . '::' . $this->getOwningSideSetter() . '($this). Otherwhise, ';
-        $helpInverseSide .= $this->getOwningSideClassName() . ' will not be saved with relation to ' . $this->getInverseSideClassName() . '.';
+        $helpInverseSide .= $this->getInverseSideClassName() . '::' . $this->getInverseSideAdder() . '() should call ';
+        $helpInverseSide .= $this->getOwningSideClassName() . '::' . $this->getOwningSideSetter();
+        $helpInverseSide .= '($this). Otherwhise, ';
+        $helpInverseSide .= $this->getOwningSideClassName() . ' will not be saved with relation to ';
+        $helpInverseSide .= $this->getInverseSideClassName() . '.';
         $errorReport->addHelp($helpInverseSide);
 
-        $helpOwningSideEntity = $this->getOwningSideClassName() . '::' . $this->getOwningSideSetter() . '() should set ';
+        $helpOwningSideEntity = $this->getOwningSideClassName() . '::' . $this->getOwningSideSetter();
+        $helpOwningSideEntity .= '() should set ';
         $helpOwningSideEntity .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty() . '.';
         $errorReport->addHelp($helpOwningSideEntity);
 
-        $helpOwningSideEntity = $this->getOwningSideClassName() . '::' . $this->getOwningSideGetter() . '() should return ';
-        $helpOwningSideEntity .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty() . '.';
+        $helpOwningSideEntity = $this->getOwningSideClassName() . '::' . $this->getOwningSideGetter();
+        $helpOwningSideEntity .= '() should return ' . $this->getOwningSideClassName();
+        $helpOwningSideEntity .= '::$' . $this->getOwningSideProperty() . '.';
         $errorReport->addHelp($helpOwningSideEntity);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->inverseSideAdder);
+        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideAdder());
         $errorReport->addMethodCode($this->getOwningSideEntity(), $this->getOwningSideSetter());
         $errorReport->addMethodCode($this->getOwningSideEntity(), $this->getOwningSideGetter());
 
@@ -308,15 +330,16 @@ trait ValidateInverseSideAdderTrait
      */
     protected function inverseSideAdderThrowAdderDoNotAddOwningSideEntity()
     {
-        $message = $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '() ';
+        $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideAdder() . '() ';
         $message .= 'does not add ' . $this->getOwningSideClassName() . '.';
         $errorReport = new ErrorReport($message);
 
-        $help = $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '() should add ';
-        $help .= $this->getOwningSideClassName() . ' in ' . $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . '.';
+        $help = $this->getInverseSideClassName() . '::' . $this->getInverseSideAdder() . '() should add ';
+        $help .= $this->getOwningSideClassName() . ' in ' . $this->getInverseSideClassName();
+        $help .= '::$' . $this->getInverseSideProperty() . '.';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->inverseSideAdder);
+        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideAdder());
         $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
@@ -327,15 +350,15 @@ trait ValidateInverseSideAdderTrait
      */
     protected function inverseSideAdderThrowAdderShouldNotAddSameOwningSideEntityTwice()
     {
-        $message = $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '() ';
+        $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideAdder() . '() ';
         $message .= 'should not add same ' . $this->getOwningSideClassName() . ' instance twice.';
         $errorReport = new ErrorReport($message);
 
-        $help = $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '() should use ';
+        $help = $this->getInverseSideClassName() . '::' . $this->getInverseSideAdder() . '() should use ';
         $help .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . '->contains().';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->inverseSideAdder);
+        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideAdder());
         $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
@@ -348,7 +371,7 @@ trait ValidateInverseSideAdderTrait
     protected function inverseSideAdderThrowAdderOrmInvalidArgumentException(ORMInvalidArgumentException $exception)
     {
         $message = 'ORMInvalidArgumentException occured after calling ';
-        $message .= $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '(), ';
+        $message .= $this->getInverseSideClassName() . '::' . $this->getInverseSideAdder() . '(), ';
         $message .= 'then ' . get_class($this->getManager()) . '::flush().';
         $errorReport = new ErrorReport($message);
 
@@ -364,7 +387,7 @@ trait ValidateInverseSideAdderTrait
     protected function inverseSideAdderThrowOwningSideEntityIdIsNull()
     {
         $message = $this->getOwningSideClassName() . '::' . $this->getOwningSideIdGetter() . '() return null ';
-        $message .= 'after calling ' . $this->getInverseSideClassName() . '::' . $this->inverseSideAdder . '(), ';
+        $message .= 'after calling ' . $this->getInverseSideClassName() . '::' . $this->getInverseSideAdder() . '(), ';
         $message .= 'then ' . get_class($this->getManager()) . '::flush().';
         $errorReport = new ErrorReport($message);
 
@@ -411,7 +434,8 @@ trait ValidateInverseSideAdderTrait
     protected function inverseSideAdderAddFlushValidation()
     {
         $message = get_class($this->getManager()) . '::flush() ';
-        $message .= 'save ' . $this->getOwningSideClassName() . ' and ' . $this->getInverseSideClassName() . ' correctly.';
+        $message .= 'save ' . $this->getOwningSideClassName() . ' and ' . $this->getInverseSideClassName();
+        $message .= ' correctly.';
         $this->getValidationReport()->addValidation($this->inverseSideAdderValidationName, $message);
 
         return $this;

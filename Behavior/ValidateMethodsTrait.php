@@ -9,14 +9,10 @@ use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 
 trait ValidateMethodsTrait
 {
-    /**
-     * @return Report
-     */
+    /** @return Report */
     abstract protected function getReport();
 
-    /**
-     * @return ValidationReport
-     */
+    /** @return ValidationReport */
     abstract protected function getValidationReport();
 
     /**
@@ -29,12 +25,12 @@ trait ValidateMethodsTrait
     {
         $methodsExists = [];
         foreach ($methods as $method) {
-            if (method_exists($entity, $method[0]) === false) {
-                $this->throwMethodDoesntExists($entity, $method[0], $method[1]);
+            if (method_exists($entity, $method['method']) === false) {
+                $this->throwMethodDoesNotExists($entity, $method['method'], $method['error']);
             }
-            $this->validateMethodParameters(get_class($entity), $method[0], $method[2]);
-            $methodsExists[] = $method[0] . '()';
-            $this->getValidationReport()->addMethodCode($entity, $method[0]);
+            $this->validateMethodParameters(get_class($entity), $method['method'], $method['parameters']);
+            $methodsExists[] = $method['method'] . '()';
+            $this->getValidationReport()->addMethodCode($entity, $method['method']);
         }
 
         $this->addMethodsValidation($entity, $methodsExists, $validationName);
@@ -96,7 +92,7 @@ trait ValidateMethodsTrait
      * @param string|null $error
      * @throws ReportException
      */
-    protected function throwMethodDoesntExists($entity, $method, $error)
+    protected function throwMethodDoesNotExists($entity, $method, $error)
     {
         $class = get_class($entity);
 
