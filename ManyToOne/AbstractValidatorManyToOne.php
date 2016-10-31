@@ -4,6 +4,7 @@ namespace steevanb\DoctrineMappingValidator\ManyToOne;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
+use steevanb\DoctrineMappingValidator\Behavior\IsPhpCodeEqualsToTemplateTrait;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
 use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
@@ -11,6 +12,8 @@ use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 
 abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
 {
+    use IsPhpCodeEqualsToTemplateTrait;
+
     /** @var EntityManagerInterface */
     private $manager;
 
@@ -62,9 +65,7 @@ abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
     /** @var bool */
     private $isBidirectionnal = true;
 
-    /**
-     * @return $this
-     */
+    /** @return $this */
     abstract protected function doValidate();
 
     /**
@@ -321,5 +322,46 @@ abstract class AbstractValidatorManyToOne implements ValidatorManyToOneInterface
     protected function isBidirectionnal()
     {
         return $this->isBidirectionnal;
+    }
+
+    /**
+     * @return $this
+     * @throws ReportException
+     */
+    protected function validateOwningSideSetterPhpCode()
+    {
+        $template = __DIR__ . '/PhpTemplate/OwningSideSetter.tpl';
+        $inverseSideClass = substr(
+            $this->getInverseSideClassName(),
+            strrpos($this->getInverseSideClassName(), '\\') + 1
+        );
+        $templateVars = [
+            'setter' => $this->getOwningSideSetter(),
+            'parameters' => $inverseSideClass . ' $' . $this->getOwningSideProperty() . ' = null',
+            'parameter' => '$' . $this->getOwningSideProperty(),
+            'property' => $this->getOwningSideProperty()
+        ];
+
+        $isValid = $this->isPhpCodeEqualsToTemplate(
+            $this->getOwningSideClassName(),
+            $this->getOwningSideSetter(),
+            $template,
+            $templateVars
+        );
+
+        if ($isValid === false) {
+            $errorReport = new ErrorReport(
+                'Invalid PHP code for ' . $this->getOwningSideClassName() . '::' . $this->getOwningSideSetter() . '()'
+            );
+            $errorReport->addMethodCode($this->getOwningSideClassName(), $this->getOwningSideSetter());
+            $errorReport->addCode(
+                $template,
+                explode("\n", $this->getPhpCodeFromTemplate($template, $templateVars))
+            );
+
+            throw new ReportException($this->getReport(), $errorReport);
+        }
+
+        return $this;
     }
 }

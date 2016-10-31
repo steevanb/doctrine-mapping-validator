@@ -21,6 +21,8 @@ class DefaultValidatorManyToOne extends AbstractValidatorManyToOne
      */
     protected function doValidate()
     {
+        $this->validateOwningSideSetterPhpCode();
+
         $direction = $this->isBidirectionnal() ? 'bidirectionnal' : 'unidirectionnal';
         $this->getValidationReport()->setMessage(
             $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty()
@@ -29,9 +31,10 @@ class DefaultValidatorManyToOne extends AbstractValidatorManyToOne
 
         if ($this->isBidirectionnal()) {
             $this
-//                ->validateInverseSidePropertyDefaultValue()
-//                ->validateInverseSideSetter();
-                ->validateInverseSideAdder();
+                ->validateInverseSidePropertyDefaultValue()
+                ->validateInverseSideSetter()
+                ->validateInverseSideAdder()
+            ;
         }
 
         return $this;

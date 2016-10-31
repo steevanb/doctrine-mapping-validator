@@ -6,6 +6,8 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\ORMInvalidArgumentException;
+use Doctrine\ORM\PersistentCollection;
+use Doctrine\ORM\Version;
 use steevanb\DoctrineMappingValidator\Report\ErrorReport;
 use steevanb\DoctrineMappingValidator\Report\Report;
 use steevanb\DoctrineMappingValidator\Report\ReportException;
@@ -40,14 +42,23 @@ trait ValidateInverseSideSetterTrait
     /** @return string */
     abstract protected function getInverseSideSetter();
 
+    /** @return array */
+    abstract protected function getInverseSideSetterMethodValidation();
+
     /** @return string */
     abstract protected function getInverseSideGetter();
+
+    /** @return array */
+    abstract protected function getInverseSideGetterMethodValidation();
 
     /** @return string */
     abstract protected function getInverseSideProperty();
 
     /** @return string */
     abstract protected function getInverseSideAdder();
+
+    /** @return array */
+    abstract protected function getInverseSideAdderMethodValidation();
 
     /** @return string */
     abstract protected function getInverseSideClearer();
@@ -64,8 +75,14 @@ trait ValidateInverseSideSetterTrait
     /** @return object */
     abstract protected function getOwningSideSetter();
 
+    /** @return array */
+    abstract protected function getOwningSideSetterMethodValidation();
+
     /** @return object */
     abstract protected function getOwningSideGetter();
+
+    /** @return array */
+    abstract protected function getOwningSideGetterMethodValidation();
 
     /** @return string */
     abstract protected function getOwningSideClassName();
@@ -76,6 +93,9 @@ trait ValidateInverseSideSetterTrait
     /** @return string */
     abstract protected function getOwningSideIdGetter();
 
+    /** @return array */
+    abstract protected function getOwningSideIdGetterMethodValidation();
+
     /** @return object */
     abstract protected function createOwningSideEntity();
 
@@ -85,11 +105,13 @@ trait ValidateInverseSideSetterTrait
     /** @return ValidationReport */
     abstract protected function getValidationReport();
 
-    /** @return array */
-    abstract protected function getInverseSideAdderMethodValidation();
-
-    /** @return array */
-    abstract protected function getInverseSideGetterMethodValidation();
+    /**
+     * @param object $entity
+     * @param array $methods
+     * @param string $validationName
+     * @return $this
+     */
+    abstract protected function validateMethods($entity, array $methods, $validationName);
 
     /**
      * @return $this
@@ -102,7 +124,7 @@ trait ValidateInverseSideSetterTrait
             ->inverseSideSetterValidateOwningSideMethods()
             ->inverseSideSetterValidateInverseSideMethods()
             ->inverseSideSetterValidate()
-            ->inverseSideSetterValidateOwningSideEntities()
+            ->inverseSideSetterValidateFlush()
             ->inverseSideSetterValidateReloadEntities();
 
         return $this;
@@ -113,14 +135,32 @@ trait ValidateInverseSideSetterTrait
      */
     protected function inverseSideSetterInit()
     {
-        $this->inverseSideSetterTestName = $this->getInverseSideClassName() . '::' . $this->getInverseSideSetter() . '()';
+        $this->inverseSideSetterTestName =
+            $this->getInverseSideClassName() . '::' . $this->getInverseSideSetter() . '()';
+
+        // Doctrine won't allow us to call add(), remove() then add() with same entity
+        // as first test is just PHP implementation, it call add(), clear(), add(), set() etc
+        // so, just don't persist entities at this stage
+        $this->inverseSideSetterInitEntities(false);
+
+        return $this;
+    }
+
+    /**
+     * @param bool $persist
+     * @return $this
+     */
+    protected function inverseSideSetterInitEntities($persist = true)
+    {
         $this->setInverseSideEntity($this->createInverseSideEntity());
 
         $this->setOwningSideEntity($this->createOwningSideEntity());
-        $this->getManager()->persist($this->getOwningSideEntity());
-
         $this->owningSideEntity2 = $this->createOwningSideEntity();
-        $this->getManager()->persist($this->owningSideEntity2);
+
+        if ($persist) {
+            $this->getManager()->persist($this->getOwningSideEntity());
+            $this->getManager()->persist($this->owningSideEntity2);
+        }
 
         return $this;
     }
@@ -133,10 +173,10 @@ trait ValidateInverseSideSetterTrait
         $this->validateMethods(
             $this->getInverseSideEntity(),
             [
-                $this->getInverseSideAdderMethodValidation(),
+                $this->getInverseSideSetterMethodValidation(),
                 $this->getInverseSideGetterMethodValidation()
             ],
-            $this->inverseSideAdderValidationName
+            $this->inverseSideSetterTestName
         );
 
         return $this;
@@ -147,24 +187,15 @@ trait ValidateInverseSideSetterTrait
      */
     protected function inverseSideSetterValidateOwningSideMethods()
     {
-        $idGetterMessage = 'You must create this method in order to get ';
-        $idGetterMessage .= $this->getOwningSideClassName() . '::$id';
-        $idGetterParameters = [];
-
-        $setterMessage = 'You must create this method in order to set ' . $this->getInverseSideClassName() . ' to ';
-        $setterMessage .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty() . '.';
-        $setterParameters = [ $this->getOwningSideProperty() => [ $this->getInverseSideClassName(), 'null' ] ];
-
-        $getterMessage = 'You must create this method in order to get ';
-        $getterMessage .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty() . '.';
-        $getterParameters = [];
-
-        $methods = [
-            [ $this->getOwningSideIdGetter(), $idGetterMessage, $idGetterParameters ],
-            [ $this->getOwningSideSetter(), $setterMessage, $setterParameters ],
-            [ $this->getOwningSideGetter(), $getterMessage, $getterParameters ]
-        ];
-        $this->validateMethods($this->getOwningSideEntity(), $methods, $this->inverseSideAdderValidationName);
+        $this->validateMethods(
+            $this->getOwningSideEntity(),
+            [
+                $this->getOwningSideIdGetterMethodValidation(),
+                $this->getOwningSideSetterMethodValidation(),
+                $this->getOwningSideGetterMethodValidation()
+            ],
+            $this->inverseSideSetterTestName
+        );
 
         return $this;
     }
@@ -175,33 +206,43 @@ trait ValidateInverseSideSetterTrait
      */
     protected function inverseSideSetterValidate()
     {
-        call_user_func([ $this->getOwningSideEntity(), $this->getOwningSideSetter()], null);
-        call_user_func([ $this->owningSideEntity2, $this->getOwningSideSetter()], null);
+        call_user_func([$this->getOwningSideEntity(), $this->getOwningSideSetter()], null);
+        call_user_func([$this->owningSideEntity2, $this->getOwningSideSetter()], null);
 
-        $owningSideEntities = new ArrayCollection([ $this->getOwningSideEntity(), $this->owningSideEntity2 ]);
-        call_user_func([ $this->getInverseSideEntity(), $this->getInverseSideSetter() ], $owningSideEntities);
-        // try to call setter 2 times, to be sure it clear owningSideEntities before adding
-        call_user_func([ $this->getInverseSideEntity(), $this->getInverseSideSetter() ], $owningSideEntities);
+        $owningSideEntities = new ArrayCollection([$this->getOwningSideEntity(), $this->owningSideEntity2]);
+        call_user_func([$this->getInverseSideEntity(), $this->getInverseSideSetter()], $owningSideEntities);
+        // try to call setter 2 times, to be sure it clear owningSideEntities, add, then reset Collection indexes
+        call_user_func([$this->getInverseSideEntity(), $this->getInverseSideSetter()], $owningSideEntities);
 
-        $settedOwningSideEntities = call_user_func([ $this->getInverseSideEntity(), $this->getInverseSideGetter() ]);
+        /** @var Collection $settedOwningSideEntities */
+        $settedOwningSideEntities = call_user_func([$this->getInverseSideEntity(), $this->getInverseSideGetter()]);
 
         if (
-            count($settedOwningSideEntities) === 2
-            && isset($settedOwningSideEntities[2])
+            (
+                // PersistentCollection doesn't reset Collection keys when Collection is empty before 2.5.5
+                $settedOwningSideEntities instanceof PersistentCollection === false
+                || version_compare(Version::VERSION, '2.5.5') >= 0
+            )
+            && count($settedOwningSideEntities) === 2
+            && (
+                isset($settedOwningSideEntities[0]) === false
+                || isset($settedOwningSideEntities[1]) === false
+            )
         ) {
             $this->inverseSideSetterThrowDoesntClearCollection();
         }
 
         if (
             count($settedOwningSideEntities) !== 2
-            || $settedOwningSideEntities[0] !== $this->getOwningSideEntity()
-            || $settedOwningSideEntities[1] !== $this->owningSideEntity2
-            || call_user_func([ $this->getOwningSideEntity(), $this->getOwningSideGetter() ]) !== $this->getInverseSideEntity()
-            || call_user_func([ $this->owningSideEntity2, $this->getOwningSideGetter() ]) !== $this->getInverseSideEntity()
+            || $settedOwningSideEntities->first() !== $this->getOwningSideEntity()
+            || $settedOwningSideEntities->next() !== $this->owningSideEntity2
+            || call_user_func([$this->getOwningSideEntity(), $this->getOwningSideGetter()]) !== $this->getInverseSideEntity()
+            || call_user_func([$this->owningSideEntity2, $this->getOwningSideGetter()]) !== $this->getInverseSideEntity()
         ) {
             $this->inverseSideSetterThrowDoesntSetProperty();
         }
 
+        call_user_func([$this->getInverseSideEntity(), $this->getInverseSideClearer()]);
         $this->inverseSideSetterAddSetPropertyValidation();
 
         return $this;
@@ -209,10 +250,13 @@ trait ValidateInverseSideSetterTrait
 
     /**
      * @return $this
-     * @throws ReportException
      */
-    protected function inverseSideSetterValidateOwningSideEntities()
+    protected function inverseSideSetterValidateFlush()
     {
+        $this->inverseSideSetterInitEntities();
+        $owningSideEntities = new ArrayCollection([$this->getOwningSideEntity(), $this->owningSideEntity2]);
+        call_user_func([$this->getInverseSideEntity(), $this->getInverseSideSetter()], $owningSideEntities);
+
         try {
             $this->getManager()->flush();
         } catch (ORMInvalidArgumentException $e) {
@@ -220,8 +264,8 @@ trait ValidateInverseSideSetterTrait
         }
 
         if (
-            call_user_func([ $this->getOwningSideEntity(), $this->getOwningSideIdGetter() ]) === null
-            || call_user_func([ $this->owningSideEntity2, $this->getOwningSideIdGetter() ]) === null
+            call_user_func([$this->getOwningSideEntity(), $this->getOwningSideIdGetter()]) === null
+            || call_user_func([$this->owningSideEntity2, $this->getOwningSideIdGetter()]) === null
         ) {
             $this->inverseSideSetterThrowOwningSideIdIsNullAfterSetterAndFlush();
         }
@@ -252,17 +296,17 @@ trait ValidateInverseSideSetterTrait
      */
     protected function inverseSideSetterValidateOnlyRightEntitiesAreInCollection()
     {
-        $mappedBy = call_user_func([ $this->getOwningSideEntity(), $this->getOwningSideGetter() ]);
+        $mappedBy = call_user_func([$this->getOwningSideEntity(), $this->getOwningSideGetter()]);
         if ($mappedBy !== $this->getInverseSideEntity()) {
             $this->inverseSideSetterThrowDoesntSetOwningSideProperty();
         }
-        $mappedBy = call_user_func([ $this->owningSideEntity2, $this->getOwningSideGetter() ]);
+        $mappedBy = call_user_func([$this->owningSideEntity2, $this->getOwningSideGetter()]);
         if ($mappedBy !== $this->getInverseSideEntity()) {
             $this->inverseSideSetterThrowDoesntSetOwningSideProperty();
         }
 
         /** @var Collection $collection */
-        $collection = call_user_func([ $this->getInverseSideEntity(), $this->getInverseSideGetter() ]);
+        $collection = call_user_func([$this->getInverseSideEntity(), $this->getInverseSideGetter()]);
         if ($collection instanceof Collection === false) {
             $this->inverseSideSetterThrowGetterMustReturnCollection($collection);
         }
@@ -289,8 +333,8 @@ trait ValidateInverseSideSetterTrait
         $help .= $this->getOwningSideClassName() . ' in ' . $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . '.';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideSetter());
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideSetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -303,7 +347,7 @@ trait ValidateInverseSideSetterTrait
         $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideGetter() . '() ';
         $message .= 'must return an instance of ' . Collection::class . ', ' . gettype($collection) . ' returned.';
         $errorReport = new ErrorReport($message);
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -331,9 +375,9 @@ trait ValidateInverseSideSetterTrait
         $helpOwningSideEntity .= $this->getOwningSideClassName() . '::$' . $this->getOwningSideProperty() . '.';
         $errorReport->addHelp($helpOwningSideEntity);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideSetter());
-        $errorReport->addMethodCode($this->getOwningSideEntity(), $this->getOwningSideSetter());
-        $errorReport->addMethodCode($this->getOwningSideEntity(), $this->getOwningSideGetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideSetter());
+        $errorReport->addMethodCode($this->getOwningSideClassName(), $this->getOwningSideSetter());
+        $errorReport->addMethodCode($this->getOwningSideClassName(), $this->getOwningSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -348,7 +392,7 @@ trait ValidateInverseSideSetterTrait
         $message .= 'then ' . get_class($this->getManager()) . '::flush().';
         $errorReport = new ErrorReport($message);
 
-        $errorReport->addMethodCode($this->getOwningSideEntity(), $this->getOwningSideIdGetter());
+        $errorReport->addMethodCode($this->getOwningSideClassName(), $this->getOwningSideIdGetter());
         $this->inverseSideSetterAddPersistHelp($errorReport);
 
         throw new ReportException($this->getReport(), $errorReport);
@@ -396,16 +440,16 @@ trait ValidateInverseSideSetterTrait
      */
     protected function inverseSideSetterThrowDoesntClearCollection()
     {
-        $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideClearer() . '() doest not reset ';
-        $message .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . ' indexes.';
+        $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideClearer() . '() do not reset ';
+        $message .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . ' keys.';
         $errorReport = new ErrorReport($message);
 
         $help = $this->getInverseSideClassName() . '::' . $this->getInverseSideClearer() . '() should call ';
-        $help .= '$this->' . $this->getInverseSideProperty() . '->clear() after $this->' . $this->getInverseSideAdder() . '()';
-        $help .= ' to reset Collection indexes.';
+        $help .= '$this->' . $this->getInverseSideProperty() . '->clear() at then end ';
+        $help .= 'to reset Collection keys.';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideSetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideClearer());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -419,11 +463,12 @@ trait ValidateInverseSideSetterTrait
         $message .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty();
         $errorReport = new ErrorReport($message);
 
-        $help = 'This method should call $this->' . $this->getInverseSideClearer() . '(), and ';
-        $help .= $this->getInverseSideAdder() . '() for each ' . $this->getOwningSideClassName() . ' passed.';
+        $help = 'This method should call $this->' . $this->getInverseSideClearer() . '(), ';
+        $help .= $this->getInverseSideAdder() . '() for each ' . $this->getOwningSideClassName() . ' passed ';
+        $help .= 'then ' . $this->getInverseSideProperty() . '->clear() to reset Collection keys.';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideSetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideSetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }

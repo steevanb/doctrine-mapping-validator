@@ -30,6 +30,9 @@ trait ValidateMethodsTrait
     abstract protected function getInverseSideProperty();
 
     /** @return string */
+    abstract protected function getInverseSideSetter();
+
+    /** @return string */
     abstract protected function getInverseSideAdder();
 
     /** @return string */
@@ -80,10 +83,25 @@ trait ValidateMethodsTrait
     /**
      * @return array
      */
+    protected function getInverseSideSetterMethodValidation()
+    {
+        $error = 'You must create this method in order to set ' . $this->getOwningSideClassName() . ' in ';
+        $error .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . ' Collection.';
+
+        return [
+            'method' => $this->getInverseSideSetter(),
+            'parameters' => [$this->getInverseSideProperty() => [$this->getOwningSideClassName()]],
+            'error' => $error
+        ];
+    }
+
+    /**
+     * @return array
+     */
     protected function getInverseSideAdderMethodValidation()
     {
         $error = 'You must create this method in order to add ' . $this->getOwningSideClassName() . ' in ';
-        $error .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . ' collection.';
+        $error .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . ' Collection.';
 
         return [
             'method' => $this->getInverseSideAdder(),
@@ -98,7 +116,7 @@ trait ValidateMethodsTrait
     protected function getInverseSideGetterMethodValidation()
     {
         $error = 'You must create this method, in order to get ';
-        $error .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . ' collection.';
+        $error .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . ' Collection.';
 
         return [
             'method' => $this->getInverseSideGetter(),

@@ -73,8 +73,8 @@ trait ValidateInverseSidePropertyDefaultValueTrait
         $helpReturn .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . '.';
         $errorReport->addHelp($helpReturn);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), '__construct');
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), '__construct');
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }

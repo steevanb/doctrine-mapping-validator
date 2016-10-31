@@ -9,12 +9,30 @@ trait AddCodeTrait
 
     /**
      * @param string $file
+     * @param array $lines
+     * @return $this
+     */
+    public function addCode($file, array $lines)
+    {
+        $this->codes[] = [
+            'file' => $file,
+            'line' => 1,
+            'lines' => $lines,
+            'highlight' => null
+        ];
+
+        return $this;
+    }
+
+    /**
+     * @param string $file
      * @param int $startLine
+     * @param int $line
      * @param array $lines
      * @param int|null $highlight
      * @return $this
      */
-    public function addCode($file, $startLine, $line, array $lines, $highlight = null)
+    public function addCodeLinesFromFile($file, $startLine, $line, array $lines, $highlight = null)
     {
         $indexedLines = [];
         $lineIndex = 1;
@@ -33,18 +51,18 @@ trait AddCodeTrait
     }
 
     /**
-     * @param object|string $object
+     * @param string $className
      * @param string $method
      * @return $this
      */
-    public function addMethodCode($object, $method)
+    public function addMethodCode($className, $method)
     {
-        if (method_exists($object, $method) === false) {
+        static $addedMethods = [];
+        if (isset($addedMethods[$className][$method])) {
             return $this;
         }
 
-        $reflection = new \ReflectionClass($object);
-        $reflectionMethod = $reflection->getMethod($method);
+        $reflectionMethod = (new \ReflectionClass($className))->getMethod($method);
         $classLines = file($reflectionMethod->getFileName());
 
         $startLine = $reflectionMethod->getStartLine();
@@ -64,12 +82,17 @@ trait AddCodeTrait
             }
         }
 
-        $this->addCode(
-            $reflection->getFileName(),
+        $this->addCodeLinesFromFile(
+            $reflectionMethod->getFileName(),
             $startLine,
             $startLine + 1,
             array_slice($classLines, $startLine, $coutLines)
         );
+
+        if (array_key_exists($className, $addedMethods) === false) {
+            $addedMethods[$className] = [];
+        }
+        $addedMethods[$className][$method] = true;
 
         return $this;
     }
@@ -85,7 +108,7 @@ trait AddCodeTrait
         $startLine = max(0, $line - 5);
         $endLine = min(count($lines), $line + 4);
 
-        $this->addCode(
+        $this->addCodeLinesFromFile(
             $file,
             $startLine,
             $line,

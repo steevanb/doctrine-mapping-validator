@@ -65,12 +65,19 @@ class ValidatorServiceManyToOne
      * @param EntityManagerInterface $manager
      * @param string $owningSideClassName
      * @param string $property
+     * @param ValidatorManyToOneInterface|null $validator
      * @return Report
      */
-    public function validate(EntityManagerInterface $manager, $owningSideClassName, $property)
-    {
-        return $this
-            ->getValidator($manager, $owningSideClassName, $property)
-            ->validate($manager, $owningSideClassName, $property);
+    public function validate(
+        EntityManagerInterface $manager,
+        $owningSideClassName,
+        $property,
+        ValidatorManyToOneInterface $validator = null
+    ) {
+        $validator = ($validator instanceof ValidatorManyToOneInterface)
+            ? $validator
+            : $this->getValidator($manager, $owningSideClassName, $property);
+
+        return $validator->validate($manager, $owningSideClassName, $property);
     }
 }

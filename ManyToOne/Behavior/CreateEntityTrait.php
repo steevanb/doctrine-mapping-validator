@@ -8,6 +8,9 @@ use steevanb\DoctrineMappingValidator\Report\ValidationReport;
 
 trait CreateEntityTrait
 {
+    /** @var int|null */
+    protected $inverseSideEntityId;
+
     /** @return EntityManagerInterface */
     abstract protected function getManager();
 
@@ -36,6 +39,25 @@ trait CreateEntityTrait
     abstract protected function getValidationReport();
 
     /**
+     * @param int|null $id
+     * @return $this
+     */
+    public function setInverseSideEntityId($id)
+    {
+        $this->inverseSideEntityId = $id;
+
+        return $this;
+    }
+
+    /**
+     * @return int|null
+     */
+    public function getInverseSideEntityId()
+    {
+        return $this->inverseSideEntityId;
+    }
+
+    /**
      * @return object
      */
     protected function createOwningSideEntity()
@@ -53,8 +75,13 @@ trait CreateEntityTrait
     protected function createInverseSideEntity()
     {
         $className = $this->getInverseSideClassName();
-        $entity = new $className();
-        $this->defineRandomData($entity);
+
+        if ($this->getInverseSideEntityId() === null) {
+            $entity = new $className();
+            $this->defineRandomData($entity);
+        } else {
+            $entity = $this->getManager()->getRepository($className)->find($this->getInverseSideEntityId());
+        }
 
         return $entity;
     }
@@ -103,6 +130,9 @@ trait CreateEntityTrait
                 break;
             case 'boolean':
                 $return = true;
+                break;
+            case 'array':
+                $return = ['value1', 'value2'];
                 break;
             default:
                 $return = null;

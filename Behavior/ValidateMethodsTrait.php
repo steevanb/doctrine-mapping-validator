@@ -30,7 +30,7 @@ trait ValidateMethodsTrait
             }
             $this->validateMethodParameters(get_class($entity), $method['method'], $method['parameters']);
             $methodsExists[] = $method['method'] . '()';
-            $this->getValidationReport()->addMethodCode($entity, $method['method']);
+            $this->getValidationReport()->addMethodCode(get_class($entity), $method['method']);
         }
 
         $this->addMethodsValidation($entity, $methodsExists, $validationName);

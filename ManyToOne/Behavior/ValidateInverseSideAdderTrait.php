@@ -84,9 +84,6 @@ trait ValidateInverseSideAdderTrait
     /** @return EntityManagerInterface */
     abstract protected function getManager();
 
-    /** @return bool */
-    abstract protected function isBidirectionnal();
-
     /** @return Report */
     abstract protected function getReport();
 
@@ -155,16 +152,14 @@ trait ValidateInverseSideAdderTrait
      */
     protected function inverseSideAdderValidateInverseSideMethods()
     {
-        if ($this->isBidirectionnal()) {
-            $this->validateMethods(
-                $this->getInverseSideEntity(),
-                [
-                    $this->getInverseSideAdderMethodValidation(),
-                    $this->getInverseSideGetterMethodValidation()
-                ],
-                $this->inverseSideAdderValidationName
-            );
-        }
+        $this->validateMethods(
+            $this->getInverseSideEntity(),
+            [
+                $this->getInverseSideAdderMethodValidation(),
+                $this->getInverseSideGetterMethodValidation()
+            ],
+            $this->inverseSideAdderValidationName
+        );
 
         return $this;
     }
@@ -305,9 +300,9 @@ trait ValidateInverseSideAdderTrait
         $helpOwningSideEntity .= '::$' . $this->getOwningSideProperty() . '.';
         $errorReport->addHelp($helpOwningSideEntity);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideAdder());
-        $errorReport->addMethodCode($this->getOwningSideEntity(), $this->getOwningSideSetter());
-        $errorReport->addMethodCode($this->getOwningSideEntity(), $this->getOwningSideGetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideAdder());
+        $errorReport->addMethodCode($this->getOwningSideClassName(), $this->getOwningSideSetter());
+        $errorReport->addMethodCode($this->getOwningSideClassName(), $this->getOwningSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -320,7 +315,7 @@ trait ValidateInverseSideAdderTrait
         $message = $this->getInverseSideClassName() . '::' . $this->getInverseSideGetter() . '() ';
         $message .= 'must return an instance of ' . Collection::class . ', ' . gettype($collection) . ' returned.';
         $errorReport = new ErrorReport($message);
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -339,8 +334,8 @@ trait ValidateInverseSideAdderTrait
         $help .= '::$' . $this->getInverseSideProperty() . '.';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideAdder());
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideAdder());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -358,8 +353,8 @@ trait ValidateInverseSideAdderTrait
         $help .= $this->getInverseSideClassName() . '::$' . $this->getInverseSideProperty() . '->contains().';
         $errorReport->addHelp($help);
 
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideAdder());
-        $errorReport->addMethodCode($this->getInverseSideEntity(), $this->getInverseSideGetter());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideAdder());
+        $errorReport->addMethodCode($this->getInverseSideClassName(), $this->getInverseSideGetter());
 
         throw new ReportException($this->getReport(), $errorReport);
     }
@@ -391,7 +386,7 @@ trait ValidateInverseSideAdderTrait
         $message .= 'then ' . get_class($this->getManager()) . '::flush().';
         $errorReport = new ErrorReport($message);
 
-        $errorReport->addMethodCode($this->getOwningSideEntity(), $this->getOwningSideIdGetter());
+        $errorReport->addMethodCode($this->getOwningSideClassName(), $this->getOwningSideIdGetter());
         $this->inverseSideAdderAddInverseSideEntityPersistError($errorReport);
 
         throw new ReportException($this->getReport(), $errorReport);
