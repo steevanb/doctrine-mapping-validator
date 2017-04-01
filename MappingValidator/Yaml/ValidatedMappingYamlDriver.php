@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace steevanb\DoctrineMappingValidator\MappingValidator\Yaml;
 
-use Doctrine\ORM\Mapping\Driver\SimplifiedYamlDriver;
-use steevanb\DoctrineMappingValidator\MappingValidator\Exception\MappingValidatorException;
-use steevanb\DoctrineMappingValidator\MappingValidator\MappingValidator;
 use Symfony\Component\Yaml\Yaml;
+use Doctrine\ORM\Mapping\Driver\SimplifiedYamlDriver;
+use steevanb\DoctrineMappingValidator\MappingValidator\{
+    Exception\MappingValidatorException,
+    MappingValidator
+};
 
 class ValidatedMappingYamlDriver extends SimplifiedYamlDriver
 {
@@ -23,13 +25,13 @@ class ValidatedMappingYamlDriver extends SimplifiedYamlDriver
 
     protected function validateMapping(string $file, string $className, array $data): self
     {
-        $yamlToMapping = new YamlToMapping($file, $className, $data);
         $validator = new MappingValidator();
+        $yamlToMapping = new YamlToMapping($file, $className, $data, $validator);
         $validator
             ->addErrors($yamlToMapping->getErrors())
             ->validate($yamlToMapping->createMapping());
-        if ($validator->isValid() === false) {
-            throw new MappingValidatorException($validator->getMapping(), $validator->getErrors());
+        if ($validator->isValid() === false || $validator->hasWarnings()) {
+            throw new MappingValidatorException($validator->getMapping(), $validator->getErrorsAndWarnings());
         }
 
         return $this;

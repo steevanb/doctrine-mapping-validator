@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace steevanb\DoctrineMappingValidator\MappingValidator\Yaml;
 
+use Doctrine\ORM\Mapping\Driver\YamlDriver;
 use steevanb\DoctrineMappingValidator\MappingValidator\{
+    Exception\MappingValidatorException,
     Exception\MappingValueTypeException,
+    FieldMapping,
     InheritanceTypeDiscriminatorMapMapping,
     Mapping,
+    MappingValidator,
     NamedNativeQueryMapping,
     NamedQueryMapping
 };
@@ -23,17 +27,21 @@ class YamlToMapping
     /** @var array */
     protected $data = [];
 
+    /** @var MappingValidator */
+    protected $validator;
+
     /** @var Mapping */
     protected $mapping;
 
     /** @var string[] */
     protected $errors = [];
 
-    public function __construct(string $file, string $className, array $data)
+    public function __construct(string $file, string $className, array $data, MappingValidator $validator)
     {
         $this->file = $file;
         $this->className = $className;
         $this->data = $data;
+        $this->validator = $validator;
     }
 
     public function createMapping()
@@ -46,7 +54,8 @@ class YamlToMapping
             ->validateNamedQueriesData()
             ->validateNamedNativeQueriesData()
             ->validateDiscriminatorColumnData()
-            ->validateDiscriminatorMapData();
+            ->validateDiscriminatorMapData()
+            ->validateFieldsData();
 
         $this
             ->defineRootMapping()
@@ -55,7 +64,8 @@ class YamlToMapping
             ->defineNamedNativeQueriesMapping()
             ->defineDiscriminatorColumn()
             ->defineDiscriminatorMap()
-            ->defineChangeTrackingPolicy();
+            ->defineChangeTrackingPolicy()
+            ->defineFields();
 
         return $this->mapping;
     }
@@ -299,18 +309,127 @@ class YamlToMapping
     protected function defineChangeTrackingPolicy(): self
     {
         $this->mapping->setChangeTrackingPolicy(
-            $this->getYamlValue('changeTrackingPolicy', $this->data['changeTrackingPolicy'] ?? null)
+            $this->getUpperYamlValue('changeTrackingPolicy', $this->data['changeTrackingPolicy'] ?? null)
         );
 
         return $this;
     }
 
-    /** @return string|int|float|bool */
+    protected function validateFieldsData(): self
+    {
+        $this->assertValueType('fields', $this->data['fields'] ?? [], ['array', 'null']);
+
+        foreach ($this->data['fields'] ?? [] as $name => $mapping) {
+            $this->assertValueType('fields.' . $name, $mapping, ['array', 'null']);
+            if (is_array($mapping)) {
+                $this->validateKnownKeys(
+                    $mapping,
+                    [
+                        'fieldName', 'type', 'id', 'generatorStrategy', 'version', 'unique', 'nullable',
+                        'columnName', 'columnDefinition', 'length', 'precision', 'scale', 'options'
+                    ],
+                    'fields.' . $name . '.'
+                );
+            }
+
+            if (isset($mapping['options'])) {
+                $this->assertValueType('fields.' . $name, $mapping['options'], ['array', 'null']);
+                if (is_array($mapping['options'])) {
+                    $this->validateKnownKeys(
+                        $mapping['options'],
+                        array_keys($this->validator->getAllowedFieldOptions($mapping['type'] ?? 'string')),
+                        'fields.' . $name . '.'
+                    );
+                }
+            }
+        }
+
+        return $this;
+    }
+
+    protected function defineFields(): self
+    {
+        foreach ($this->data['fields'] ?? [] as $name => $mapping) {
+            $field = new FieldMapping();
+            $field
+                ->setName($name)
+                ->setFieldName($this->getYamlValue('fields.' . $name . '.fieldName', $mapping['fieldName'] ?? null))
+                ->setType($this->getYamlValue('fields.' . $name . '.type', $mapping['type'] ?? null))
+                ->setGeneratorStrategy(
+                    $this->getUpperYamlValue(
+                        'fields.' . $name . '.generatorStrategy',
+                        $mapping['generator']['strategy'] ?? null
+                    )
+                )
+                ->setVersion(
+                    $this->getYamlValue('fields.' . $name . '.version', $mapping['version'] ?? null, ['bool', 'null'])
+                )
+                ->setUnique(
+                    $this->getYamlValue('fields.' . $name . '.unique', $mapping['unique'] ?? null, ['bool', 'null'])
+                )
+                ->setNullable(
+                    $this->getYamlValue('fields.' . $name . '.nullable', $mapping['nullable'] ?? null, ['bool', 'null'])
+                )
+                ->setColumnName($this->getYamlValue('fields.' . $name . '.columnName', $mapping['columnName'] ?? null))
+                ->setColumnDefinition(
+                    $this->getYamlValue('fields.' . $name . '.columnDefinition', $mapping['columnDefinition'] ?? null)
+                )
+                ->setLength(
+                    $this->getYamlValue('fields.' . $name . '.length', $mapping['length'] ?? null, ['int', 'null'])
+                )
+                ->setPrecision($this->getYamlValue(
+                    'fields.' . $name . '.precision',
+                    $mapping['precision'] ?? null,
+                    ['int', 'null']
+                ))
+                ->setScale(
+                    $this->getYamlValue('fields.' . $name . '.scale', $mapping['scale'] ?? null, ['int', 'null'])
+                );
+
+            $id = $this->getYamlValue('fields.' . $name . '.id', $mapping['id'] ?? null, ['bool', 'null']);
+            if ($id === false) {
+                throw new MappingValidatorException($this->mapping, [
+                    'Invalid value "false" for "fields.' . $name . '.id". '
+                    . 'As ' . YamlDriver::class . ' only check if "id" is defined, not it\'s real value, '
+                    . 'you can only set it to true.'
+                ]);
+            }
+            $field->setId($id);
+
+            $version = $this->getYamlValue('fields.' . $name . '.version', $mapping['version'] ?? null, ['bool', 'null']);
+            if ($version === false) {
+                throw new MappingValidatorException($this->mapping, [
+                    'Invalid value "false" for "fields.' . $name . '.version". '
+                    . 'As ' . YamlDriver::class . ' only check if "version" is defined, not it\'s real value, '
+                    . 'you can only set it to true.'
+                ]);
+            }
+            $field->setId($id);
+
+            $options = $this->getYamlValue('fields.' . $name . '.options', $mapping['options'] ?? [], ['array', 'null']);
+            foreach ($options as $optionName => $optionValue) {
+                $field->addOption($optionName, $optionValue);
+            }
+
+            $this->mapping->addField($field);
+        }
+
+        return $this;
+    }
+
+    /** @return string|int|float|bool|array */
     protected function getYamlValue(string $name, $value, array $allowedTypes = ['string', 'null'])
     {
         $this->assertValueType($name, $value, $allowedTypes);
 
         return $value;
+    }
+
+    protected function getUpperYamlValue(string $name, ?string $value): ?string
+    {
+        $value = $this->getYamlValue($name, $value);
+
+        return $value === null ? $value : strtoupper($value);
     }
 
     protected function assertValueType(string $name, $value, array $allowedTypes = ['string', 'null']): self

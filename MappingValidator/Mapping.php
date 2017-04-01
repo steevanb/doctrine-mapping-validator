@@ -57,6 +57,9 @@ class Mapping
     /** @var OptionMapping[] */
     protected $options = [];
 
+    /** @var FieldMapping[] */
+    protected $fields = [];
+
     public function __construct(string $source, string $className)
     {
         $this->source = $source;
@@ -245,5 +248,18 @@ class Mapping
     public function getOptions(): array
     {
         return $this->options;
+    }
+
+    public function addField(FieldMapping $field): self
+    {
+        $this->fields[] = $field;
+
+        return $this;
+    }
+
+    /** @return FieldMapping[] */
+    public function getFields(): array
+    {
+        return $this->fields;
     }
 }

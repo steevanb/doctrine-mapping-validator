@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace steevanb\DoctrineMappingValidator\MappingValidator;
 
+use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\Mapping\NamingStrategy;
 
 class MappingValidator
@@ -14,30 +15,49 @@ class MappingValidator
     /** @var string[] */
     protected $errors = [];
 
-    /** @var NamingStrategy */
+    /** @var string[] */
+    protected $warnings = [];
+
+    /** @var ?NamingStrategy */
     protected $namingStrategy;
 
-    protected $allowedFieldTypes = [
-        'string', 'text', 'blob',
-        'integer', 'smallint', 'bigint', 'decimal', 'float',
-        'date', 'time', 'datetime', 'datetimetz',
-        'array', 'simple_array', 'json_array',
-        'boolean', 'object', 'guid'
+    /** @var string[] */
+    protected $allowedFieldTypes = [];
+
+    /** @var array */
+    protected $allowedFieldOptions = [
+        'smallint' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
+        'integer' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
+        'bigint' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
+        'decimal' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
+        'float' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
+        'string' => [
+            'fixed' => ['bool', 'null'],
+            'collation' => ['string', 'null'],
+            'check' => ['string', 'null']
+        ],
+        'text' => ['collation' => ['string', 'null'], 'check' => ['string', 'null']],
+        'blob' => ['collation' => ['string', 'null'], 'check' => ['string', 'null']],
     ];
+
+    public function __construct()
+    {
+        $this->allowedFieldTypes = array_keys(Type::getTypesMap());
+    }
 
     public function getMapping(): ?Mapping
     {
         return $this->mapping;
     }
 
-    public function setNamingStrategy(string $namingStrategy): self
+    public function setNamingStrategy(NamingStrategy $namingStrategy): self
     {
         $this->namingStrategy = $namingStrategy;
 
         return $this;
     }
 
-    public function getNamingStrategy(): NamingStrategy
+    public function getNamingStrategy(): ?NamingStrategy
     {
         return $this->namingStrategy;
     }
@@ -63,6 +83,18 @@ class MappingValidator
         return $this->allowedFieldTypes;
     }
 
+    public function addAllowedFieldOption(string $type, string $name, array $allowedTypes): self
+    {
+        $this->allowedFieldOptions[$type][$name] = $allowedTypes;
+
+        return $this;
+    }
+
+    public function getAllowedFieldOptions(string $type): array
+    {
+        return $this->allowedFieldOptions[$type] ?? [];
+    }
+
     public function validate(Mapping $mapping): self
     {
         $this->mapping = $mapping;
@@ -77,7 +109,8 @@ class MappingValidator
             ->validateInheritanceType()
             ->validateDiscriminatorColumn()
             ->validateDiscriminatorMap()
-            ->validateChangeTrackingPolicy();
+            ->validateChangeTrackingPolicy()
+            ->validateFields();
 
         return $this;
     }
@@ -104,6 +137,28 @@ class MappingValidator
     public function getErrors(): array
     {
         return $this->errors;
+    }
+
+    public function addWarning(string $warning): self
+    {
+        $this->warnings[] = $warning;
+
+        return $this;
+    }
+
+    public function getWarnings(): array
+    {
+        return $this->warnings;
+    }
+
+    public function hasWarnings(): bool
+    {
+        return count($this->warnings) > 0;
+    }
+
+    public function getErrorsAndWarnings(): array
+    {
+        return array_merge($this->getErrors(), $this->getWarnings());
     }
 
     protected function validateClassname(): self
@@ -321,6 +376,75 @@ class MappingValidator
         return $this;
     }
 
+    protected function validateFields(): self
+    {
+        $fieldNames = [];
+        foreach ($this->getMapping()->getFields() as $index => $field) {
+            if ($field->getName() === null) {
+                $name = '#' . $index;
+                $this->addError('Field "' . $name . '" should have a name.');
+            } else {
+                $name = $field->getName();
+                if (in_array($field->getName(), $fieldNames)) {
+                    $this->addError('Field "' . $name . '" should be defined once.');
+                } else {
+                    $fieldNames[] = $field->getName();
+                }
+            }
+
+            if (
+                $field->getFieldName() !== null
+                && $this->getNamingStrategy() instanceof NamingStrategy
+                &&
+                    $this->getNamingStrategy()->propertyToColumnName($field->getFieldName(), $this->getMapping()->getClassName()
+                    === $field->getFieldName()
+                )
+            ) {
+                $this->addWarning(
+                    'Useless configuration "' . $field->getFieldName() . '" for "fields.' . $name . '.fieldName", '
+                    . get_class($this->getNamingStrategy()) . ' generate same field name.'
+                );
+            }
+
+            $this->validateFieldType($field->getType(), $name);
+            if ($field->getType() === 'string') {
+                $this->addWarning(
+                    'Useless configuration "' . $field->getType() . '" for "fields.' . $name . '.type", '
+                    . 'it is the default value.'
+                );
+            }
+
+            if ($field->isId() === true) {
+                $allowedStrategies = ['AUTO', 'SEQUENCE', 'TABLE', 'IDENTITY', 'NONE', 'UUID', 'CUSTOM'];
+                if (
+                    $field->getGeneratorStrategy() !== null
+                    && in_array($field->getGeneratorStrategy(), $allowedStrategies) === false
+                ) {
+                    $this->addUnkonwMappingError(
+                        'fields.' . $name . '.generator.strategy',
+                        $field->getGeneratorStrategy(),
+                        $allowedStrategies
+                    );
+                }
+            } elseif ($field->getGeneratorStrategy() !== null) {
+                $this->addError('Generator strategy should be defined for id "false".');
+            }
+
+            $allowedVersionTypes = ['integer', 'bigint', 'smallint', 'datetime'];
+            if (
+                $field->isVersion() === true
+                && in_array($field->getType(), $allowedVersionTypes) === false
+            ) {
+                $this->addError(
+                    'Invalid value "' . ($field->getType() ?? 'null') .'" for "fields.' . $name . '.type". '
+                    . 'Only ' . implode(', ', $allowedVersionTypes) . ' are allowed for version "true".'
+                );
+            }
+        }
+
+        return $this;
+    }
+
     protected function addUnkonwMappingError(string $name, $value, array $allowedValues): self
     {
         if (is_string($value)) {
@@ -339,9 +463,9 @@ class MappingValidator
         return $this;
     }
 
-    protected function validateFieldType(string $type, string $configurationName): self
+    protected function validateFieldType(?string $type, string $configurationName): self
     {
-        if (in_array($type, $this->getAllowedFieldTypes()) === false) {
+        if ($type !== null && in_array($type, $this->getAllowedFieldTypes()) === false) {
             $this->addError('Unkonw field type "' . $type . '" for "' . $configurationName . '".');
         }
 
