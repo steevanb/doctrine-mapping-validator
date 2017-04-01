@@ -24,12 +24,12 @@ class ValidatedMappingYamlDriver extends SimplifiedYamlDriver
     protected function validateMapping(string $file, string $className, array $data): self
     {
         $yamlToMapping = new YamlToMapping($file, $className, $data);
-        $validator = new MappingValidator($yamlToMapping->createMapping());
+        $validator = new MappingValidator();
         $validator
             ->addErrors($yamlToMapping->getErrors())
-            ->validate();
+            ->validate($yamlToMapping->createMapping());
         if ($validator->isValid() === false) {
-            throw new MappingValidatorException($validator->getMapping(), implode(' ', $validator->getErrors()));
+            throw new MappingValidatorException($validator->getMapping(), $validator->getErrors());
         }
 
         return $this;

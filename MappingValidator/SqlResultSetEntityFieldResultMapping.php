@@ -6,19 +6,11 @@ namespace steevanb\DoctrineMappingValidator\MappingValidator;
 
 class SqlResultSetEntityFieldResultMapping
 {
-    /** @var SqlResultSetEntityResultMapping */
-    protected $sqlResultSetEntityResultMapping;
-
     /** @var ?string */
     protected $name;
 
     /** @var ?string */
     protected $column;
-
-    public function __construct(SqlResultSetEntityResultMapping $sqlResultSetEntityResultMapping)
-    {
-        $this->sqlResultSetEntityResultMapping = $sqlResultSetEntityResultMapping;
-    }
 
     public function setName(?string $name): self
     {

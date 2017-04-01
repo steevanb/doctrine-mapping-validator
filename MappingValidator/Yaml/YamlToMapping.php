@@ -6,7 +6,9 @@ namespace steevanb\DoctrineMappingValidator\MappingValidator\Yaml;
 
 use steevanb\DoctrineMappingValidator\MappingValidator\{
     Exception\MappingValueTypeException,
+    InheritanceTypeDiscriminatorMapMapping,
     Mapping,
+    NamedNativeQueryMapping,
     NamedQueryMapping
 };
 
@@ -39,14 +41,21 @@ class YamlToMapping
         $this->mapping = new Mapping($this->file, $this->className);
 
         $this
-            ->validateRootKnownKeys()
-            ->validateCacheKnownKeys()
-            ->validateNamedQueriesKnownKeys()
-            ->validateNamedNativeQueriesKnownKeys();
+            ->validateRootData()
+            ->validateCacheData()
+            ->validateNamedQueriesData()
+            ->validateNamedNativeQueriesData()
+            ->validateDiscriminatorColumnData()
+            ->validateDiscriminatorMapData();
 
         $this
             ->defineRootMapping()
-            ->defineCacheMapping();
+            ->defineCacheMapping()
+            ->defineNamedQueriesMapping()
+            ->defineNamedNativeQueriesMapping()
+            ->defineDiscriminatorColumn()
+            ->defineDiscriminatorMap()
+            ->defineChangeTrackingPolicy();
 
         return $this->mapping;
     }
@@ -60,14 +69,14 @@ class YamlToMapping
     {
         $diff = array_values(array_diff(array_keys($data), $keys));
         if (count($diff) > 0) {
-            $error = 'Unknow mapping configuration' . (count($diff) > 1 ? 's' : null) . ': ';
+            $error = 'Unknow mapping key' . (count($diff) > 1 ? 's' : null) . ': ';
             $error .= implode(', ', array_map(
                 function($value) use ($prefix) {
                     return $prefix . $value;
                 },
                 $diff
             ));
-            $error .= '. Allowed configuration' . (count($diff) > 1 ? 's' : null) . ': ';
+            $error .= '. Allowed key' . (count($keys) > 1 ? 's' : null) . ': ';
             $error .= implode(', ', $keys) . '.';
             $this->errors[] = $error;
         }
@@ -75,8 +84,10 @@ class YamlToMapping
         return $this;
     }
 
-    protected function validateRootKnownKeys(): self
+    protected function validateRootData(): self
     {
+        $this->assertValueType('root', $this->data, ['array', 'null']);
+
         return $this->validateKnownKeys($this->data, [
             'type',
             'repositoryClass',
@@ -108,35 +119,6 @@ class YamlToMapping
         ]);
     }
 
-    protected function validateCacheKnownKeys(): self
-    {
-        return $this->validateKnownKeys($this->data['cache'] ?? [], ['region', 'usage'], 'cache.');
-    }
-
-    protected function validateNamedQueriesKnownKeys(): self
-    {
-        foreach ($this->data['namedQueries'] ?? [] as $name => $queryMapping) {
-            if (is_array($queryMapping)) {
-                $this->validateKnownKeys($queryMapping, ['name', 'query'], 'namedQueries.' . $name . '.');
-            }
-        }
-
-        return $this;
-    }
-
-    protected function validateNamedNativeQueriesKnownKeys(): self
-    {
-        foreach ($this->data['namedNativeQueries'] ?? [] as $name => $queryMapping) {
-            $this->validateKnownKeys(
-                $queryMapping,
-                ['name', 'query', 'resultClass', 'resultSetMapping'],
-                'namedNativeQueries.' . $name . '.'
-            );
-        }
-
-        return $this;
-    }
-
     protected function defineRootMapping(): self
     {
         $this
@@ -145,9 +127,17 @@ class YamlToMapping
             ->setRepositoryClass($this->getYamlValue('repositoryClass', $this->data['repositoryClass'] ?? null))
             ->setReadOnly($this->getYamlValue('readOnly', $this->data['readOnly'] ?? null, ['bool', 'null']))
             ->setTable($this->getYamlValue('table', $this->data['table'] ?? null))
-            ->setSchema($this->getYamlValue('schema', $this->data['schema'] ?? null));
+            ->setSchema($this->getYamlValue('schema', $this->data['schema'] ?? null))
+            ->setInheritanceType($this->getYamlValue('inheritanceType', $this->data['inheritanceType'] ?? null));
 
         return $this;
+    }
+
+    protected function validateCacheData(): self
+    {
+        $this->assertValueType('cache', $this->data['cache'] ?? [], ['array', 'null']);
+
+        return $this->validateKnownKeys($this->data['cache'] ?? [], ['region', 'usage'], 'cache.');
     }
 
     protected function defineCacheMapping(): self
@@ -161,18 +151,36 @@ class YamlToMapping
         return $this;
     }
 
+    protected function validateNamedQueriesData(): self
+    {
+        $this->assertValueType('namedQueries', $this->data['namedQueries'] ?? [], ['array', 'null']);
+
+        foreach ($this->data['namedQueries'] ?? [] as $name => $queryMapping) {
+            $this->assertValueType('namedQueries.' . $name, $queryMapping ?? [], ['string', 'array']);
+            if (is_array($queryMapping)) {
+                $this->validateKnownKeys($queryMapping, ['name', 'query'], 'namedQueries.' . $name . '.');
+            }
+        }
+
+        return $this;
+    }
+
     protected function defineNamedQueriesMapping(): self
     {
         foreach ($this->data['namedQueries'] ?? [] as $name => $queryMappingData) {
-            $queryMapping = new NamedQueryMapping($this->mapping);
+            $queryMapping = new NamedQueryMapping();
             if (is_string($queryMappingData)) {
                 $queryMapping
                     ->setName($name)
                     ->setQuery($queryMappingData);
             } else {
                 $queryMapping
-                    ->setName($queryMappingData['name'] ?? $name)
-                    ->setQuery($queryMappingData['query'] ?? null);
+                    ->setName(
+                        $this->getYamlValue('namedQueries.' . $name . '.name', $queryMappingData['name'] ?? $name)
+                    )
+                    ->setQuery(
+                        $this->getYamlValue('namedQueries.' . $name . '.query', $queryMappingData['query'] ?? null)
+                    );
             }
             $this->mapping->addNamedQuery($queryMapping);
         }
@@ -180,12 +188,133 @@ class YamlToMapping
         return $this;
     }
 
-    /** @return string|int|float|bool */
-    protected function getYamlValue(string $name, $value, $allowedTypes = ['string', 'null'])
+    protected function validateNamedNativeQueriesData(): self
     {
-        if (is_string($allowedTypes)) {
-            $allowedTypes = [$allowedTypes];
+        $this->assertValueType('namedNativeQueries', $this->data['namedNativeQueries'] ?? [], ['array', 'null']);
+
+        foreach ($this->data['namedNativeQueries'] ?? [] as $name => $queryMapping) {
+            $this->validateKnownKeys(
+                $queryMapping,
+                ['name', 'query', 'resultClass', 'resultSetMapping'],
+                'namedNativeQueries.' . $name . '.'
+            );
         }
+
+        return $this;
+    }
+
+    protected function defineNamedNativeQueriesMapping(): self
+    {
+        $this->assertValueType('namedNativeQueries', $this->data['namedNativeQueries'] ?? [], ['array', 'null']);
+
+        foreach ($this->data['namedNativeQueries'] ?? [] as $name => $queryMappingData) {
+            $queryMapping = new NamedNativeQueryMapping();
+            $queryMapping
+                ->setName(
+                    $this->getYamlValue('namedNativeQueries.' . $name . '.name', $queryMappingData['name'] ?? $name)
+                )
+                ->setQuery(
+                    $this->getYamlValue('namedNativeQueries.' . $name . '.query', $queryMappingData['query'] ?? null)
+                )
+                ->setResultClass(
+                    $this->getYamlValue(
+                        'namedNativeQueries.' . $name . '.resultClass',
+                        $queryMappingData['resultClass'] ?? null
+                    )
+                )
+                ->setResultSetMapping(
+                    $this->getYamlValue(
+                        'namedNativeQueries.' . $name . '.resultSetMapping',
+                        $queryMappingData['resultSetMapping'] ?? null
+                    )
+                );
+            $this->mapping->addNamedNativeQuery($queryMapping);
+        }
+
+        return $this;
+    }
+
+    protected function validateDiscriminatorColumnData(): self
+    {
+        $this->assertValueType('discriminatorColumn', $this->data['discriminatorColumn'] ?? [], ['array', 'null']);
+
+        return $this->validateKnownKeys(
+            $this->data['discriminatorColumn'] ?? [],
+            ['name', 'length', 'type', 'columnDefinition'],
+            'discriminatorColumn.'
+        );
+    }
+
+    protected function defineDiscriminatorColumn(): self
+    {
+        $this
+            ->mapping
+            ->getDiscriminatorColumn()
+            ->setName(
+                $this->getYamlValue('discriminatorColumn.name', $this->data['discriminatorColumn']['name'] ?? null)
+            )
+            ->setLength(
+                $this->getYamlValue(
+                    'discriminatorColumn.length',
+                    $this->data['discriminatorColumn']['length'] ?? null,
+                    ['int', 'null']
+                )
+            )
+            ->setType(
+                $this->getYamlValue('discriminatorColumn.type', $this->data['discriminatorColumn']['type'] ?? null)
+            )
+            ->setColumnDefinition(
+                $this->getYamlValue(
+                    'discriminatorColumn.columnDefinition',
+                    $this->data['discriminatorColumn']['columnDefinition'] ?? null
+                )
+            );
+
+        return $this;
+    }
+
+    protected function validateDiscriminatorMapData(): self
+    {
+        $this->assertValueType('discriminatorMap', $this->data['discriminatorMap'] ?? [], ['array', 'null']);
+        foreach ($this->data['discriminatorMap'] ?? [] as $value => $className) {
+            $this->assertValueType('discriminatorMap.' . $value, $className, ['string']);
+        }
+
+        return $this;
+    }
+
+    protected function defineDiscriminatorMap(): self
+    {
+        foreach ($this->data['discriminatorMap'] ?? [] as $value => $className) {
+            $map = new InheritanceTypeDiscriminatorMapMapping();
+            $map
+                ->setName($this->getYamlValue('discriminatorMap.' . $value, $value, ['string', 'int', 'float']))
+                ->setClassName($this->getYamlValue('discriminatorMap.' . $value, $className, ['string', null]));
+            $this->mapping->addDiscriminatorMap($map);
+        }
+
+        return $this;
+    }
+
+    protected function defineChangeTrackingPolicy(): self
+    {
+        $this->mapping->setChangeTrackingPolicy(
+            $this->getYamlValue('changeTrackingPolicy', $this->data['changeTrackingPolicy'] ?? null)
+        );
+
+        return $this;
+    }
+
+    /** @return string|int|float|bool */
+    protected function getYamlValue(string $name, $value, array $allowedTypes = ['string', 'null'])
+    {
+        $this->assertValueType($name, $value, $allowedTypes);
+
+        return $value;
+    }
+
+    protected function assertValueType(string $name, $value, array $allowedTypes = ['string', 'null']): self
+    {
         $isAllowedType = false;
         foreach ($allowedTypes as $allowedType) {
             if (call_user_func('is_' . $allowedType, $value)) {
@@ -197,6 +326,6 @@ class YamlToMapping
             throw new MappingValueTypeException($this->mapping, $name, $value, $allowedTypes);
         }
 
-        return $value;
+        return $this;
     }
 }

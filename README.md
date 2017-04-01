@@ -11,3 +11,7 @@ Installation
 ------------
 
 doctrine.orm.metadata.yml.class: steevanb\DoctrineMappingValidator\MappingValidator\Yaml\ValidatedMappingYamlDriver
+
+$validator = new MappingValidator($mapping);
+$validator->setNamingStrategy(new DefaultNamingStrategy());
+$validator->validate();

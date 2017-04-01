@@ -6,9 +6,6 @@ namespace steevanb\DoctrineMappingValidator\MappingValidator;
 
 class UniqueConstraintMapping
 {
-    /** @var Mapping */
-    protected $mapping;
-
     /** @var ?string */
     protected $name;
 
@@ -17,11 +14,6 @@ class UniqueConstraintMapping
 
     /** @var UniqueConstraintOptionMapping[] */
     protected $options;
-
-    public function __construct(Mapping $mapping)
-    {
-        $this->mapping = $mapping;
-    }
 
     public function setName(?string $name): self
     {

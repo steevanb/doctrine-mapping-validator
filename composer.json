@@ -7,7 +7,8 @@
         "psr-4": { "steevanb\\DoctrineMappingValidator\\": "" }
     },
     "require": {
-        "doctrine/orm": "^2.4.8"
+        "php": "^7.1",
+        "doctrine/orm": "^2.5.0"
     },
     "repositories": [
         {

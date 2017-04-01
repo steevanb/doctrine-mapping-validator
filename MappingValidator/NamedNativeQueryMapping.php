@@ -6,9 +6,6 @@ namespace steevanb\DoctrineMappingValidator\MappingValidator;
 
 class NamedNativeQueryMapping
 {
-    /** @var Mapping */
-    protected $mapping;
-
     /** @var ?string */
     protected $name;
 
@@ -20,16 +17,6 @@ class NamedNativeQueryMapping
 
     /** @var ?string */
     protected $resultSetMapping;
-
-    public function __construct(Mapping $mapping)
-    {
-        $this->mapping = $mapping;
-    }
-
-    public function getMapping(): Mapping
-    {
-        return $this->mapping;
-    }
 
     public function setName(?string $name): self
     {

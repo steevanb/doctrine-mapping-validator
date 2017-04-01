@@ -6,24 +6,11 @@ namespace steevanb\DoctrineMappingValidator\MappingValidator;
 
 class CacheMapping
 {
-    /** @var Mapping */
-    protected $mapping;
-
     /** @var ?string */
     protected $region;
 
     /** @var ?string */
     protected $usage;
-
-    public function __construct(Mapping $mapping)
-    {
-        $this->mapping = $mapping;
-    }
-
-    public function getMapping(): Mapping
-    {
-        return $this->mapping;
-    }
 
     public function setRegion(?string $region): self
     {

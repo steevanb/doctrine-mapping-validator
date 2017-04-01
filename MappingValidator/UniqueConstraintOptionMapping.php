@@ -6,24 +6,11 @@ namespace steevanb\DoctrineMappingValidator\MappingValidator;
 
 class UniqueConstraintOptionMapping
 {
-    /** @var UniqueConstraintMapping */
-    protected $uniqueConstraint;
-
     /** @var ?string */
     protected $name;
 
     /** @var ?string */
     protected $value;
-
-    public function __construct(UniqueConstraintMapping $uniqueConstraint)
-    {
-        $this->uniqueConstraint = $uniqueConstraint;
-    }
-
-    public function getUniqueConstraint(): UniqueConstraintMapping
-    {
-        return $this->uniqueConstraint;
-    }
 
     public function setName(?string $name): self
     {

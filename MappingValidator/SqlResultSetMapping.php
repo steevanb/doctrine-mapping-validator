@@ -6,9 +6,6 @@ namespace steevanb\DoctrineMappingValidator\MappingValidator;
 
 class SqlResultSetMapping
 {
-    /** @var Mapping */
-    protected $mapping;
-
     /** @var ?string */
     protected $name;
 
@@ -17,16 +14,6 @@ class SqlResultSetMapping
 
     /** @var SqlResultSetColumnResultMapping[] */
     protected $columnResults = [];
-
-    public function __construct(Mapping $mapping)
-    {
-        $this->mapping = $mapping;
-    }
-
-    public function getMapping(): Mapping
-    {
-        return $this->mapping;
-    }
 
     public function setName(?string $name): self
     {

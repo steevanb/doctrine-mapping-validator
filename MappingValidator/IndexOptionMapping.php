@@ -6,24 +6,11 @@ namespace steevanb\DoctrineMappingValidator\MappingValidator;
 
 class IndexOptionMapping
 {
-    /** @var IndexMapping */
-    protected $index;
-
     /** @var ?string */
     protected $name;
 
     /** @var ?string */
     protected $value;
-
-    public function __construct(IndexMapping $index)
-    {
-        $this->index = $index;
-    }
-
-    public function getIndex(): IndexMapping
-    {
-        return $this->index;
-    }
 
     public function setName(?string $name): self
     {

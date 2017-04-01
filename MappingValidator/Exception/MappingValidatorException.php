@@ -8,8 +8,20 @@ use steevanb\DoctrineMappingValidator\MappingValidator\Mapping;
 
 class MappingValidatorException extends \Exception
 {
-    public function __construct(Mapping $mapping, string $message)
+    public static $separator = "\n";
+
+    public function __construct(Mapping $mapping, array $errors)
     {
-        parent::__construct('[' . $mapping->getSource() . '#' . $mapping->getClassName() . '] ' . $message);
+        parent::__construct(
+            $mapping->getSource()
+            . static::$separator . 'Entity: ' . $mapping->getClassName()
+            . static::$separator
+            . implode(static::$separator, array_map(function($error) {
+                static $index = 0;
+                $index++;
+
+                return '#' . $index . ' ' . $error;
+            }, $errors))
+        );
     }
 }

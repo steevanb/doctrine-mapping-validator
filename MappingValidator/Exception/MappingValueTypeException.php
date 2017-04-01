@@ -10,10 +10,10 @@ class MappingValueTypeException extends MappingValidatorException
 {
     public function __construct(Mapping $mapping, string $name, $value, array $allowedTypes)
     {
-        $message = 'Wrong value type ' . $this->getValueType($value) . ' for "' . $name . '".';
-        $message .= ' Allowed types : ' . implode(', ', $allowedTypes);
+        $message = 'Wrong value type "' . $this->getValueType($value) . '" for "' . $name . '".';
+        $message .= ' Allowed types : ' . implode(', ', $allowedTypes) . '.';
 
-        parent::__construct($mapping, $message);
+        parent::__construct($mapping, [$message]);
     }
 
     protected function getValueType($value): string
