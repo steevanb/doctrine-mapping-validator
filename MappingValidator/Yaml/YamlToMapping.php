@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace steevanb\DoctrineMappingValidator\MappingValidator\Yaml;
 
 use Doctrine\ORM\Mapping\Driver\YamlDriver;
+use Symfony\Component\Yaml\Yaml;
 use steevanb\DoctrineMappingValidator\MappingValidator\{
     Exception\MappingValidatorException,
     Exception\MappingValueTypeException,
@@ -36,11 +37,16 @@ class YamlToMapping
     /** @var string[] */
     protected $errors = [];
 
-    public function __construct(string $file, string $className, array $data, MappingValidator $validator)
+    public function __construct(string $file, MappingValidator $validator)
     {
         $this->file = $file;
-        $this->className = $className;
-        $this->data = $data;
+
+        $yaml = Yaml::parse(file_get_contents($file));
+        if (is_array($yaml) === false || count($yaml) !== 1) {
+            throw new \Exception('Malformed yaml file "' . $file . '".');
+        }
+        $this->className = array_keys($yaml)[0];
+        $this->data = array_shift($yaml);
         $this->validator = $validator;
     }
 
@@ -96,7 +102,7 @@ class YamlToMapping
 
     protected function validateRootData(): self
     {
-        $this->assertValueType('root', $this->data, ['array', 'null']);
+        $this->assertValueType('root', $this->data, ['array']);
 
         return $this->validateKnownKeys($this->data, [
             'type',
@@ -326,7 +332,7 @@ class YamlToMapping
                     $mapping,
                     [
                         'fieldName', 'type', 'id', 'generatorStrategy', 'version', 'unique', 'nullable',
-                        'columnName', 'columnDefinition', 'length', 'precision', 'scale', 'options'
+                        'column', 'columnName', 'columnDefinition', 'length', 'precision', 'scale', 'options'
                     ],
                     'fields.' . $name . '.'
                 );
@@ -396,7 +402,10 @@ class YamlToMapping
             }
             $field->setId($id);
 
-            $version = $this->getYamlValue('fields.' . $name . '.version', $mapping['version'] ?? null, ['bool', 'null']);
+            $version = $this->getYamlValue(
+                'fields.' . $name . '.version', $mapping['version'] ?? null,
+                ['bool', 'null']
+            );
             if ($version === false) {
                 throw new MappingValidatorException($this->mapping, [
                     'Invalid value "false" for "fields.' . $name . '.version". '
@@ -406,7 +415,10 @@ class YamlToMapping
             }
             $field->setId($id);
 
-            $options = $this->getYamlValue('fields.' . $name . '.options', $mapping['options'] ?? [], ['array', 'null']);
+            $options = $this->getYamlValue(
+                'fields.' . $name . '.options', $mapping['options'] ?? [],
+                ['array', 'null']
+            );
             foreach ($options as $optionName => $optionValue) {
                 $field->addOption($optionName, $optionValue);
             }
