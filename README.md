@@ -10,8 +10,35 @@ Validate your Doctrine mapping informations, and your related PHP code.
 Installation
 ------------
 
-doctrine.orm.metadata.yml.class: steevanb\DoctrineMappingValidator\MappingValidator\Yaml\ValidatedMappingYamlDriver
+Validate mapping each time _.orm.yml_ is readed:
 
-$validator = new MappingValidator($mapping);
+```yml
+# app/config/config.yml
+
+doctrine.orm.metadata.yml.class: steevanb\DoctrineMappingValidator\MappingValidator\Yaml\ValidatedMappingYamlDriver
+```
+
+Validate your mappings :
+
+```php
+$validator = new MappingValidator();
 $validator->setNamingStrategy(new DefaultNamingStrategy());
-$validator->validate();
+
+$finder = (new Finder())
+    ->files()
+    ->name('*.orm.yml')
+    ->in('/var/www/foo');
+/** @var SplFileInfo $file */
+foreach ($finder as $file) {
+    $yamlYoMapping = new YamlToMapping($file->getPathname(), $validator);
+    $mapping = $yamlYoMapping->createMapping();
+    if (count($yamlYoMapping->getErrors()) > 0) {
+        dump($file->getFilename(), $yamlYoMapping->getErrors());
+    }
+
+    $validation = $validator->validate($mapping);
+    if ($validation->hasErrorsOrWarnings()) {
+        dump($file->getFilename(), $validation->getErrorsAndWarnings());
+    }
+}
+```
