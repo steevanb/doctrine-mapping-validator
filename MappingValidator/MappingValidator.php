@@ -26,18 +26,50 @@ class MappingValidator
 
     /** @var array */
     protected $allowedFieldOptions = [
-        'smallint' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
-        'integer' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
-        'bigint' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
-        'decimal' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
-        'float' => ['unsigned' => ['bool', 'null'], 'check' => ['string', 'null']],
+        'smallint' => [
+            'unsigned' => ['bool', 'null'],
+            'check' => ['string', 'null'],
+            'default' => ['int', 'null']
+        ],
+        'integer' => [
+            'unsigned' => ['bool', 'null'],
+            'check' => ['string', 'null'],
+            'default' => ['int', 'null']
+        ],
+        'bigint' => [
+            'unsigned' => ['bool', 'null'],
+            'check' => ['string', 'null'],
+            'default' => ['int', 'null']
+        ],
+        'decimal' => [
+            'unsigned' => ['bool', 'null'],
+            'check' => ['string', 'null'],
+            'default' => ['int', 'float', 'string', 'null']
+        ],
+        'float' => [
+            'unsigned' => ['bool', 'null'],
+            'check' => ['string', 'null'],
+            'default' => ['int', 'float', 'null']
+        ],
         'string' => [
             'fixed' => ['bool', 'null'],
             'collation' => ['string', 'null'],
-            'check' => ['string', 'null']
+            'check' => ['string', 'null'],
+            'default' => ['string', 'null']
         ],
-        'text' => ['collation' => ['string', 'null'], 'check' => ['string', 'null']],
-        'blob' => ['collation' => ['string', 'null'], 'check' => ['string', 'null']],
+        'text' => [
+            'collation' => ['string', 'null'],
+            'check' => ['string', 'null'],
+            'default' => ['string', 'null']
+        ],
+        'blob' => [
+            'collation' => ['string', 'null'],
+            'check' => ['string', 'null'],
+            'default' => ['string', 'null']
+        ],
+        'boolean' => [
+            'default' => ['int', 'null'],
+        ]
     ];
 
     public function __construct()
@@ -99,6 +131,7 @@ class MappingValidator
     {
         $this->mapping = $mapping;
         $this->errors = [];
+        $this->warnings = [];
 
         $this
             ->validateClassname()
@@ -139,6 +172,11 @@ class MappingValidator
         return $this->errors;
     }
 
+    public function hasErrors(): bool
+    {
+        return count($this->errors) > 0;
+    }
+
     public function addWarning(string $warning): self
     {
         $this->warnings[] = $warning;
@@ -159,6 +197,11 @@ class MappingValidator
     public function getErrorsAndWarnings(): array
     {
         return array_merge($this->getErrors(), $this->getWarnings());
+    }
+
+    public function hasErrorsOrWarnings(): bool
+    {
+        return $this->hasErrors() || $this->hasWarnings();
     }
 
     protected function validateClassname(): self
@@ -410,7 +453,7 @@ class MappingValidator
             if ($field->getType() === 'string') {
                 $this->addWarning(
                     'Useless configuration "' . $field->getType() . '" for "fields.' . $name . '.type", '
-                    . 'it is the default value.'
+                    . 'this is the default value.'
                 );
             }
 
