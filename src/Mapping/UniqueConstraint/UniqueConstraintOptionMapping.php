@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace steevanb\DoctrineMappingValidator\MappingValidator;
+namespace steevanb\DoctrineMappingValidator\Mapping\UniqueConstraint;
 
-class OptionMapping
+class UniqueConstraintOptionMapping
 {
     /** @var ?string */
     protected $name;

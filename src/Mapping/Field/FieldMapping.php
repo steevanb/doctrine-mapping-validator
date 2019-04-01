@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace steevanb\DoctrineMappingValidator\MappingValidator;
+namespace steevanb\DoctrineMappingValidator\Mapping\Field;
 
 class FieldMapping
 {

@@ -2,18 +2,19 @@
     "name": "steevanb/doctrine-mapping-validator",
     "license": "MIT",
     "description": "Validate your Doctrine mapping informations and PHP code",
-    "minimum-stability": "dev",
     "autoload": {
-        "psr-4": { "steevanb\\DoctrineMappingValidator\\": "" }
+        "psr-4": {
+            "steevanb\\DoctrineMappingValidator\\": "src/"
+        }
     },
     "require": {
         "php": "^7.1",
-        "doctrine/orm": "^2.5.0"
+        "doctrine/orm": "^2.5.0",
+        "symfony/yaml": "^2.7||^3.0||^4.0",
+        "symfony/console": "^3.0||^4.0",
+        "symfony/finder": "^2.0||^3.0||^4.0"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/steevanb/doctrine-mapping-validator.git"
-        }
-    ]
+    "require-dev": {
+        "symfony/var-dumper": "^4.0"
+    }
 }

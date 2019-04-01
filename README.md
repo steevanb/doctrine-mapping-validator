@@ -30,10 +30,10 @@ $finder = (new Finder())
     ->in('/var/www/foo');
 /** @var SplFileInfo $file */
 foreach ($finder as $file) {
-    $yamlYoMapping = new YamlToMapping($file->getPathname(), $validator);
-    $mapping = $yamlYoMapping->createMapping();
-    if (count($yamlYoMapping->getErrors()) > 0) {
-        dump($file->getFilename(), $yamlYoMapping->getErrors());
+    $yamlToMapping = new YamlToMapping($file->getPathname(), $validator);
+    $errors = $yamlToMapping->validate();
+    if (count($errors) > 0) {
+        dump($file->getFilename(), $errors);
     }
 
     $validation = $validator->validate($mapping);

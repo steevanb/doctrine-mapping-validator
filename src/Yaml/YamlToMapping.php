@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace steevanb\DoctrineMappingValidator\MappingValidator\Yaml;
+namespace steevanb\DoctrineMappingValidator\Yaml;
 
 use Doctrine\ORM\Mapping\Driver\YamlDriver;
 use Symfony\Component\Yaml\Yaml;
-use steevanb\DoctrineMappingValidator\MappingValidator\{
+use steevanb\DoctrineMappingValidator\{
     Exception\MappingValidatorException,
     Exception\MappingValueTypeException,
-    FieldMapping,
-    InheritanceTypeDiscriminatorMapMapping,
-    Mapping,
-    MappingValidator,
-    NamedNativeQueryMapping,
-    NamedQueryMapping
+    Mapping\Field\FieldMapping,
+    Mapping\InheritanceType\InheritanceTypeDiscriminatorMapMapping,
+    Mapping\Mapping,
+    Mapping\MappingValidator,
+    Mapping\NamedNativeQueryMapping,
+    Mapping\NamedQueryMapping
 };
 
 class YamlToMapping
@@ -34,6 +34,9 @@ class YamlToMapping
     /** @var Mapping */
     protected $mapping;
 
+    /** @var bool */
+    protected $mappingLoaded = false;
+
     /** @var string[] */
     protected $errors = [];
 
@@ -48,12 +51,11 @@ class YamlToMapping
         $this->className = array_keys($yaml)[0];
         $this->data = array_shift($yaml);
         $this->validator = $validator;
+        $this->mapping = new Mapping($this->file, $this->className);
     }
 
-    public function createMapping()
+    public function validate(): array
     {
-        $this->mapping = new Mapping($this->file, $this->className);
-
         $this
             ->validateRootData()
             ->validateCacheData()
@@ -63,15 +65,22 @@ class YamlToMapping
             ->validateDiscriminatorMapData()
             ->validateFieldsData();
 
-        $this
-            ->defineRootMapping()
-            ->defineCacheMapping()
-            ->defineNamedQueriesMapping()
-            ->defineNamedNativeQueriesMapping()
-            ->defineDiscriminatorColumn()
-            ->defineDiscriminatorMap()
-            ->defineChangeTrackingPolicy()
-            ->defineFields();
+        return $this->getErrors();
+    }
+
+    public function getMapping(): Mapping
+    {
+        if ($this->mappingLoaded === false) {
+            $this
+                ->defineRootMapping()
+                ->defineCacheMapping()
+                ->defineNamedQueriesMapping()
+                ->defineNamedNativeQueriesMapping()
+                ->defineDiscriminatorColumn()
+                ->defineDiscriminatorMap()
+                ->defineChangeTrackingPolicy()
+                ->defineFields();
+        }
 
         return $this->mapping;
     }
@@ -85,7 +94,7 @@ class YamlToMapping
     {
         $diff = array_values(array_diff(array_keys($data), $keys));
         if (count($diff) > 0) {
-            $error = 'Unknow mapping key' . (count($diff) > 1 ? 's' : null) . ': ';
+            $error = 'Unknown mapping key' . (count($diff) > 1 ? 's' : null) . ': ';
             $error .= implode(', ', array_map(
                 function($value) use ($prefix) {
                     return $prefix . $value;

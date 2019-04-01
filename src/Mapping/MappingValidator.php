@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace steevanb\DoctrineMappingValidator\MappingValidator;
+namespace steevanb\DoctrineMappingValidator\Mapping;
 
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\Mapping\NamingStrategy;
@@ -452,8 +452,11 @@ class MappingValidator
             $this->validateFieldType($field->getType(), $name);
             if ($field->getType() === 'string') {
                 $this->addWarning(
-                    'Useless configuration "' . $field->getType() . '" for "fields.' . $name . '.type", '
-                    . 'this is the default value.'
+                    'Useless type configuration "'
+                    . $field->getType()
+                    . '" for "'
+                    . $name
+                    . '": it is the default value.'
                 );
             }
 

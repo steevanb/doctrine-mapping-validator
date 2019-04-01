@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace steevanb\DoctrineMappingValidator\MappingValidator\Yaml;
+namespace steevanb\DoctrineMappingValidator\Yaml;
 
 use Symfony\Component\Yaml\Yaml;
 use Doctrine\ORM\Mapping\Driver\SimplifiedYamlDriver;
-use steevanb\DoctrineMappingValidator\MappingValidator\{
+use steevanb\DoctrineMappingValidator\{
     Exception\MappingValidatorException,
     MappingValidator
 };

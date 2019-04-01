@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace steevanb\DoctrineMappingValidator\MappingValidator;
+namespace steevanb\DoctrineMappingValidator\Mapping;
 
-class InheritanceTypeDiscriminatorMapMapping
+class NamedQueryMapping
 {
     /** @var ?string */
     protected $name;
 
     /** @var ?string */
-    protected $className;
+    protected $query;
 
     public function setName(?string $name): self
     {
@@ -24,15 +24,15 @@ class InheritanceTypeDiscriminatorMapMapping
         return $this->name;
     }
 
-    public function setClassName(?string $className): self
+    public function setQuery(?string $query): self
     {
-        $this->className = $className;
+        $this->query = $query;
 
         return $this;
     }
 
-    public function getClassName(): ?string
+    public function getQuery(): ?string
     {
-        return $this->className;
+        return $this->query;
     }
 }

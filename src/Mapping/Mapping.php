@@ -2,7 +2,16 @@
 
 declare(strict_types=1);
 
-namespace steevanb\DoctrineMappingValidator\MappingValidator;
+namespace steevanb\DoctrineMappingValidator\Mapping;
+
+use steevanb\DoctrineMappingValidator\{
+    Mapping\Cache\CacheMapping,
+    Mapping\Field\FieldMapping,
+    Mapping\Index\IndexMapping,
+    Mapping\InheritanceType\InheritanceTypeDiscriminatorColumnMapping,
+    Mapping\InheritanceType\InheritanceTypeDiscriminatorMapMapping,
+    Mapping\SqlResultSet\SqlResultSetMapping
+};
 
 class Mapping
 {
@@ -64,8 +73,8 @@ class Mapping
     {
         $this->source = $source;
         $this->className = $className;
-        $this->cache = new CacheMapping($this);
-        $this->discriminatorColumn = new InheritanceTypeDiscriminatorColumnMapping($this);
+        $this->cache = new CacheMapping();
+        $this->discriminatorColumn = new InheritanceTypeDiscriminatorColumnMapping();
     }
 
     public function getSource(): string

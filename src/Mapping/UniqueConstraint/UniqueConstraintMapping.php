@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace steevanb\DoctrineMappingValidator\MappingValidator;
+namespace steevanb\DoctrineMappingValidator\Mapping\UniqueConstraint;
 
 class UniqueConstraintMapping
 {
@@ -25,11 +25,6 @@ class UniqueConstraintMapping
     public function getName(): ?string
     {
         return $this->name;
-    }
-
-    public function getMapping(): Mapping
-    {
-        return $this->mapping;
     }
 
     public function addColumn(string $name): self
