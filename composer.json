@@ -1,0 +1,17 @@
+{
+    "name": "steevanb/doctrine-validator",
+    "license": "MIT",
+    "description": "Validate your Doctrine mapping and PHP code",
+    "autoload": {
+        "psr-4": {
+            "steevanb\\DoctrineValidator\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^7.1",
+        "doctrine/orm": "^2.5"
+    },
+    "require-dev": {
+        "symfony/var-dumper": "^4.0"
+    }
+}
